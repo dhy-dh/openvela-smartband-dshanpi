@@ -1,0 +1,46 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config TESTING_CHARCAN
+	tristate "vela auto tests for charcan"
+	default n
+	depends on TESTING_CMOCKA && CAN
+	---help---
+		Unit test for Can
+
+if TESTING_CHARCAN
+config TESTING_CHARCAN_PROGNAME
+	string "Program name"
+	default "cmocka_canecho"
+	---help---
+		This is the name of the cmocka program that will be used as Can test.
+
+config TESTING_CHARCAN_PRIORITY
+	int "Task priority"
+	default 100
+
+config TESTING_CHARCAN_STACKSIZE
+	int "Task stack size"
+	default 8192
+
+config TESTING_CHARCAN_SENDER_DEVICE
+	string "Sender Device Path"
+	default "/dev/can0"
+	---help---
+		The device path for Can test.
+
+config TESTING_CHARCAN_RECEIVER_DEVICE
+	string "Receiver Device Path"
+	default "/dev/can1"
+	---help---
+		The device path for Can test.
+
+config TESTING_CHARCAN_CANMSG_ID
+	int "Can Message ID"
+	default 273
+	---help---
+		The Can message ID for chrdev Can test.
+
+endif

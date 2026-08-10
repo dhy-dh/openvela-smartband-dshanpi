@@ -1,0 +1,9 @@
+cc_binary {
+    name: "uio_test",
+    srcs: ["uio_test.c"],
+    cflags: [
+            "-DERROR=-1",
+            "-DFAR=",
+    ],
+    shared_libs: ["libcutils"],
+}

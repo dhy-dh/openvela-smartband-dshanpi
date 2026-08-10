@@ -1,0 +1,29 @@
+cc_binary {
+    name: "rpsock_client",
+    srcs: ["rpsock_client.c"],
+    cflags: [
+            "-DCONFIG_NET_RPMSG_RXBUF_SIZE=1024",
+            "-DFAR=",
+    ],
+    shared_libs: ["libcutils"],
+    header_libs: [
+        "nuttx_libc_headers",
+        "kernel_modules_headers",
+    ],
+
+    proprietary: true,
+}
+cc_binary {
+    name: "rpsock_server",
+    srcs: ["rpsock_server.c"],
+    cflags: [
+            "-DFAR=",
+    ],
+    shared_libs: ["libcutils"],
+    header_libs: [
+        "nuttx_libc_headers",
+        "kernel_modules_headers",
+    ],
+
+    proprietary: true
+}

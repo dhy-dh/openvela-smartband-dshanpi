@@ -1,0 +1,32 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+menuconfig SYSTEM_ACPICA
+	tristate "ACPI tools support"
+	default n
+	---help---
+		Enable support for ACPI parsing tools such as iASL.
+
+if SYSTEM_ACPICA
+
+config ACPICA_PROGNAME
+	string "Program name"
+	default "acpica"
+	---help---
+		This is the name of the program that will be used.
+
+config ACPICA_STACKSIZE
+	int "Stack size"
+	default DEFAULT_TASK_STACKSIZE
+	---help---
+		The size of stack allocated for the acpica daemon task.
+
+config ACPICA_PRIORITY
+	int "Task priority"
+	default 100
+	---help---
+		The priority of the acpica daemon task.
+
+endif # SYSTEM_ACPICA

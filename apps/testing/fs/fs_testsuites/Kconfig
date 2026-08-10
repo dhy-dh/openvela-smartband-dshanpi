@@ -1,0 +1,44 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config TESTING_FS_TESTSUITES
+	tristate "FS Testsuites"
+	default n
+	depends on TESTING_CMOCKA
+	---help---
+		Enable FS Test for NuttX
+
+config TESTING_FS_TESTSUITES_PRIORITY
+	int "Task priority"
+	default 100
+	depends on TESTING_FS_TESTSUITES
+
+config TESTING_FS_TESTSUITES_STACKSIZE
+	int "Task stack size"
+	default DEFAULT_TASK_STACKSIZE
+	depends on TESTING_FS_TESTSUITES
+
+if TESTING_FS_TESTSUITES
+
+config TESTING_FS_TESTSUITES_MTD
+	bool "MTD tests"
+	default n
+	depends on TESTING_FS_TESTSUITES
+	depends on RAMMTD
+	---help---
+		Enable FTL tests
+
+if TESTING_FS_TESTSUITES_MTD
+
+config TESTING_FS_TESTSUITES_RAMMTD_BUFFERSIZE
+	int "Rammtd tests buffer size"
+	default 8192
+	depends on TESTING_FS_TESTSUITES_MTD
+	---help---
+		Rammtd tests buffer size, it needs to be a multiple of
+		CONFIG_RAMMTD_ERASESIZE
+
+endif #TESTING_FS_TESTSUITES_MTD
+endif #TESTING_FS_TESTSUITES

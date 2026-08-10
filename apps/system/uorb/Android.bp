@@ -1,0 +1,108 @@
+cc_defaults {
+    name: "uorb_defaults",
+    header_libs: ["kernel_modules_headers"],
+    cflags: [
+        "-DCODE=",
+        "-DERROR=-1",
+        "-DFAR=",
+        "-DOK=0",
+        "-DCONFIG_DEBUG_UORB",
+        "-DCONFIG_UORB_PRIORITY=60"
+    ],
+    static_libs: [
+        "libuorb",
+        "libnuttx_libc",
+    ],
+    shared_libs: [
+        "libcutils"
+    ],
+    proprietary: true,
+}
+
+cc_library_headers {
+    name: "libuorb_headers",
+    export_include_dirs: ["."],
+    proprietary: true,
+}
+
+cc_library_static {
+    name: "libuorb",
+    srcs: [
+        "uORB/*.c",
+        "sensor/*.c",
+    ],
+    cflags: [
+        "-DCODE=",
+        "-DCONFIG_DEBUG_UORB",
+        "-DCONFIG_UORB_LOOP_MAX_EVENTS=16",
+        "-DERROR=-1",
+        "-DFAR=",
+        "-DOK=0",
+    ],
+    static_libs: [
+        "libnuttx_libc",
+    ],
+    header_libs: [
+        "nuttx_libc_headers",
+        "kernel_modules_headers"
+    ],
+    defaults: [
+        "nuttx_libc_defaults"
+    ],
+    proprietary: true,
+}
+
+cc_binary {
+    name: "uorb_listener",
+    srcs: ["listener.c"],
+    cflags: [
+        "-DCODE=",
+        "-DERROR=-1",
+        "-DFAR=",
+        "-DOK=0",
+    ],
+    defaults: ["uorb_defaults"]
+}
+
+cc_binary {
+    name: "uorb_unit_test",
+    srcs: [
+        "test/unit_test.c",
+        "test/utility.c"
+    ],
+    defaults: ["uorb_defaults"]
+}
+
+cc_binary {
+    name: "uorb_advertise_demo",
+    srcs: [
+        "test/orb_advertise_main.c",
+        "test/utility.c"
+    ],
+    defaults: ["uorb_defaults"]
+}
+
+cc_binary {
+    name: "uorb_rpmsg_test",
+    srcs: [
+        "test/rpmsg_test.c",
+        "test/utility.c"
+    ],
+    defaults: ["uorb_defaults"],
+    cflags: [
+        "-DCONFIG_RPMSG_LOCAL_CPUNAME=\"droid\""
+    ]
+}
+
+cc_binary {
+    name: "uorb_downsample",
+    srcs: [
+        "test/downsampling_test.c",
+        "test/utility.c"
+    ],
+    defaults: ["uorb_defaults"],
+    cflags: [
+        "-DCONFIG_UORB_STACKSIZE=2048",
+        "-DSCHED_PRIORITY_MAX=255",
+    ]
+}

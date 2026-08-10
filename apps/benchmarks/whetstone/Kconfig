@@ -1,0 +1,29 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config BENCHMARK_WHETSTONE
+	tristate "Double Precision Benchmark"
+	default n
+	---help---
+		Enable a Whetstone test.
+
+if BENCHMARK_WHETSTONE
+
+config BENCHMARK_WHETSTONE_PROGNAME
+	string "Program name"
+	default "whetstone"
+	---help---
+		This is the name of the program that will be used when the NSH ELF
+		program is installed.
+
+config BENCHMARK_WHETSTONE_PRIORITY
+	int "Whetstone test task priority"
+	default 100
+
+config BENCHMARK_WHETSTONE_STACKSIZE
+	int "Whetstone test stack size"
+	default DEFAULT_TASK_STACKSIZE
+
+endif

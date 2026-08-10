@@ -1,0 +1,35 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config EXAMPLES_MEMORY_PRESSURE
+	tristate "Memory pressure example"
+	default n
+	depends on FS_PROCFS_INCLUDE_PRESSURE
+	---help---
+		Enable the memory pressure example
+
+if EXAMPLES_MEMORY_PRESSURE
+
+config EXAMPLES_MEMORY_PRESSURE_PROGNAME
+	string "Program name"
+	default "pressure"
+	---help---
+		This is the name of the program that will be used when the NSH ELF
+		program is installed.
+
+config EXAMPLES_MEMORY_PRESSURE_PRIORITY
+	int "Memory pressure task priority"
+	default 100
+
+config EXAMPLES_MEMORY_PRESSURE_STACKSIZE
+	int "Memory pressure stack size"
+	default DEFAULT_TASK_STACKSIZE
+
+config EXAMPLES_MEMORY_PRESSURE_HEAPSIZE
+	int "Memory pressure heap size"
+	depends on MM_TASK_HEAP
+	default MM_TASK_HEAP_DEFAULT_SIZE
+
+endif

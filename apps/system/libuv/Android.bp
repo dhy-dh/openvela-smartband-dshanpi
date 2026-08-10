@@ -1,0 +1,69 @@
+cc_library_static {
+    name: "libuv",
+    min_sdk_version: "33",
+
+    srcs: [
+        "libuv/src/fs-poll.c",
+        "libuv/src/idna.c",
+        "libuv/src/inet.c",
+        "libuv/src/random.c",
+        "libuv/src/strscpy.c",
+        "libuv/src/strtok.c",
+        "libuv/src/thread-common.c",
+        "libuv/src/threadpool.c",
+        "libuv/src/timer.c",
+        "libuv/src/uv-data-getter-setters.c",
+        "libuv/src/uv-common.c",
+        "libuv/src/version.c",
+        "libuv/src/unix/async.c",
+        "libuv/src/unix/core.c",
+        "libuv/src/unix/dl.c",
+        "libuv/src/unix/fs.c",
+        "libuv/src/unix/getaddrinfo.c",
+        "libuv/src/unix/getnameinfo.c",
+        "libuv/src/unix/loop-watcher.c",
+        "libuv/src/unix/loop.c",
+        "libuv/src/unix/pipe.c",
+        "libuv/src/unix/poll.c",
+        "libuv/src/unix/process.c",
+        "libuv/src/unix/random-devurandom.c",
+        "libuv/src/unix/signal.c",
+        "libuv/src/unix/stream.c",
+        "libuv/src/unix/tcp.c",
+        "libuv/src/unix/thread.c",
+        "libuv/src/unix/tty.c",
+        "libuv/src/unix/udp.c",
+        "libuv/src/unix/linux.c",
+        "libuv/src/unix/procfs-exepath.c",
+        "libuv/src/unix/proctitle.c",
+        "libuv/src/unix/random-getrandom.c",
+        "libuv/src/unix/random-getentropy.c",
+        "libuv/src/unix/random-sysctl-linux.c",
+    ],
+
+    local_include_dirs: [
+        "libuv/include",
+        "libuv/src",
+    ],
+
+    cflags: [
+        //"-DANDROID",
+        "-D_GNU_SOURCE",    // For LibUV on Android/Linux
+        "-DDEF_THREADPOOL_SIZE=1",
+        "-DCONFIG_NET_RPMSG",
+        "-Werror",
+        "-Wno-missing-field-initializers",
+        "-Wno-unused-parameter",
+        "-Wno-sometimes-uninitialized",
+    ],
+
+    apex_available : [
+        "//apex_available:platform",
+        "com.android.btservices",
+    ],
+
+    header_libs: [
+        "kernel_modules_headers_apex",
+    ],
+}
+

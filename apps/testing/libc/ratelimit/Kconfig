@@ -1,0 +1,23 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config TESTING_RATELIMIT
+	tristate "cmocka RATELIMIT test"
+	default n
+	depends on TESTING_CMOCKA
+	---help---
+		Enable the cmocka RATELIMIT test
+
+if TESTING_RATELIMIT
+
+config TESTING_RATELIMIT_PRIORITY
+	int "Task priority"
+	default 100
+
+config TESTING_RATELIMIT_STACKSIZE
+	int "Stack size"
+	default DEFAULT_TASK_STACKSIZE
+
+endif

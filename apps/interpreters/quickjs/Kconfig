@@ -1,0 +1,97 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config INTERPRETERS_QUICKJS
+	tristate "QuickJS JavaScript interpreter"
+	default n
+
+if INTERPRETERS_QUICKJS
+
+choice
+	prompt "QuickJS command line interpreter"
+	default INTERPRETERS_QUICKJS_NONE
+
+config INTERPRETERS_QUICKJS_NONE
+	bool "distable quickjs interpreter"
+
+config INTERPRETERS_QUICKJS_MINI
+	bool "Minimal quickjs interpreter"
+
+config INTERPRETERS_QUICKJS_FULL
+	bool "normal quickjs interpreter"
+
+endchoice # QuickJS command line interpreter
+
+config INTERPRETERS_QUICKJS_BIGNUM
+	bool "Bignum support"
+	default n
+	---help---
+		It's depend on libatomic,
+		Not all platform support it.
+
+config INTERPRETERS_QUICKJS_PRIORITY
+	int "QuickJS interpreter priority"
+	default 100
+
+config INTERPRETERS_QUICKJS_STACKSIZE
+	int "QuickJS interpreter stack size"
+	default 8192
+
+config INTERPRETERS_QUICKJS_MEMORY_LEAK_TRACE_SIZE
+	int "QuickJS Memory trace stack buffer size"
+	default 0
+
+config INTERPRETERS_QUICKJS_MEMORY_LEAK_TRACE_DUP_SIZE
+	int "QuickJS Memory trace stack dup buffer size"
+	default 0
+	depends on INTERPRETERS_QUICKJS_MEMORY_LEAK_TRACE_SIZE > 0
+
+config INTERPRETERS_QUICKJS_EXT_HOOK
+	bool "External init/destory hook"
+	default n
+	depends on INTERPRETERS_QUICKJS_MINI
+	---help---
+		Since minimal interpreter only support 'console.log',
+		you can export custom module by implement init/destory hook.
+
+config INTERPRETERS_QUICKJS_DEBUG
+	bool "QuickJS interpreter debug support"
+	default n
+	---help---
+		Enable this if you want js debugger support.
+
+config INTERPRETERS_QUICKJS_CONFIG_TOOL
+	bool "QuickJS interpreter config tool support"
+	default n
+	---help---
+		Enable this if you want js config tool support.
+
+config INTERPRETERS_QUICKJS_EXPORT_API
+	bool "Export API to WAMR"
+	default n
+
+config INTERPRETERS_QUICKJS_HEAPDUMP
+	bool "Enable QUICKJS_HEAPDUMP"
+	select INTERPRETERS_QUICKJS_DEBUG
+	default n
+
+config INTERPRETERS_QUICKJS_CPUPROFILING
+	bool "Enable QUICKJS_CPUPROFILING"
+	default n
+
+config INTERPRETERS_QUICKJS_DUMP_LEAKS
+	bool "Enable QuickJS DUMP_LEAKS"
+	default n
+	depends on (!QUICKAPP_BYTECODE_OPTIMIZATION)
+	---help---
+		Enable this if you want js dump leaks support.
+		by default, quickjs will only dump object leaks when closing, without string and atoms
+		open this option will dump all leaks when closing, contains object, string and atoms.
+
+config INTERPRETERS_QUICKJS_TEST
+	bool "Enable QuickJS test"
+	default n
+
+endif # INTERPRETERS_QUICKJS

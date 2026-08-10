@@ -1,0 +1,1 @@
+/vendor/bin/rpmsg_tun_server    u:object_r:rpmsg_tun_server_exec:s0

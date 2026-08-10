@@ -1,0 +1,32 @@
+cc_binary {
+    name: "rpmsg_tun_client",
+    header_libs: [
+        "kernel_modules_headers",
+    ],
+    srcs: [
+        "rpmsg_tun_client.c",
+        "rpmsg_tun_util.c",
+        ],
+    cflags: [
+        "-DCONFIG_NETUTILS_RPMSG_TUN_BUFSIZE=2048",
+    ],
+    proprietary: true,
+}
+
+cc_binary {
+    name: "rpmsg_tun_server",
+    header_libs: [
+        "kernel_modules_headers",
+    ],
+    srcs: [
+        "rpmsg_tun_server.c",
+        "rpmsg_tun_util.c",
+        ],
+    cflags: [
+        "-DCONFIG_NETUTILS_RPMSG_TUN_BUFSIZE=2048",
+    ],
+    init_rc: [
+        "init.rpmsg_tun_server.rc",
+    ],
+    proprietary: true,
+}

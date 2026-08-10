@@ -1,0 +1,30 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config TESTING_CLOCKTEST
+	tristate "Clock test"
+	default n
+	depends on TESTING_CMOCKA
+	---help---
+		Enable the Clock test
+
+if TESTING_CLOCKTEST
+
+config TESTING_CLOCKTEST_PROGNAME
+	string "clocktest"
+	default "clocktest"
+	---help---
+		The name of the program that will be used when the NSH ELF
+		program is installed.
+
+config TESTING_CLOCKTEST_PRIORITY
+	int "Clock test task priority"
+	default 100
+
+config TESTING_CLOCKTEST_STACKSIZE
+	int "Clock test task stack size"
+	default DEFAULT_TASK_STACKSIZE
+
+endif

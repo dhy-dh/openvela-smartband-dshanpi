@@ -1,0 +1,182 @@
+/****************************************************************************
+ * apps/system/trace/trace_dump.c
+ *
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ *
+ ****************************************************************************/
+
+/****************************************************************************
+ * Included Files
+ ****************************************************************************/
+
+#include <nuttx/config.h>
+#include <nuttx/note/note_driver.h>
+
+#include <fcntl.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
+
+#include "trace.h"
+
+/****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
+
+#define TRACE_DUMP_BUFFER_SIZE 1024
+
+/****************************************************************************
+ * Name: note_ioctl
+ ****************************************************************************/
+
+static void note_ioctl(int cmd, unsigned long arg)
+{
+  int notefd;
+
+  notefd = open("/dev/note/ram", O_RDONLY);
+  if (notefd < 0)
+    {
+      fprintf(stderr, "trace: cannot open /dev/note/ram\n");
+      return;
+    }
+
+  ioctl(notefd, cmd, arg);
+  close(notefd);
+}
+
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Name: trace_dump
+ *
+ * Description:
+ *   Read notes and dump trace results.
+ *
+ ****************************************************************************/
+
+int trace_dump(FAR const char *filename, FAR FILE *out, bool binary)
+{
+  uint8_t *tracedata = NULL;
+  char path[PATH_MAX];
+  int ret;
+  int fd;
+
+  /* Open note for read */
+
+  snprintf(path, sizeof(path), "/dev/note/%s", filename);
+  fd = open(path, O_RDONLY);
+  if (fd < 0)
+    {
+      fprintf(stderr, "trace: cannot open %s\n", path);
+      return ERROR;
+    }
+
+  if (binary)
+    {
+      unsigned int mode = NOTE_MODE_READ_BINARY;
+      ret = ioctl(fd, NOTE_SETREADMODE, &mode);
+      if (ret < 0)
+        {
+          fprintf(stderr, "trace: cannot set read mode\n");
+          close(fd);
+          return ERROR;
+        }
+    }
+
+  tracedata = malloc(TRACE_DUMP_BUFFER_SIZE);
+  if (tracedata == NULL)
+    {
+      fprintf(stderr, "trace: cannot allocate memory\n");
+      close(fd);
+      return ERROR;
+    }
+
+  /* Read and output all notes */
+
+  while (1)
+    {
+      ret = read(fd, tracedata, TRACE_DUMP_BUFFER_SIZE);
+      if (ret < 0 || ret > TRACE_DUMP_BUFFER_SIZE)
+        {
+          fprintf(stderr, "trace: read error: %d, errno:%d\n", ret, errno);
+          continue;
+        }
+      else if (ret == 0)
+        {
+          break;
+        }
+
+      fwrite(tracedata, 1, ret, out);
+    }
+
+  /* Close note */
+
+  close(fd);
+  free(tracedata);
+  return ret;
+}
+
+/****************************************************************************
+ * Name: trace_dump_clear
+ *
+ * Description:
+ *   Clear all contents of the buffer
+ *
+ ****************************************************************************/
+
+void trace_dump_clear(void)
+{
+  note_ioctl(NOTE_CLEAR, 0);
+}
+
+/****************************************************************************
+ * Name: trace_dump_get_overwrite
+ *
+ * Description:
+ *   Get overwrite mode
+ *
+ ****************************************************************************/
+
+bool trace_dump_get_overwrite(void)
+{
+  unsigned int mode = 0;
+
+  note_ioctl(NOTE_GETMODE, (unsigned long)&mode);
+
+  return mode == NOTE_MODE_OVERWRITE_ENABLE;
+}
+
+/****************************************************************************
+ * Name: trace_dump_set_overwrite
+ *
+ * Description:
+ *   Set overwrite mode
+ *
+ ****************************************************************************/
+
+void trace_dump_set_overwrite(bool enable)
+{
+  unsigned int mode;
+
+  mode = enable ? NOTE_MODE_OVERWRITE_ENABLE :
+                  NOTE_MODE_OVERWRITE_DISABLE;
+
+  note_ioctl(NOTE_SETMODE, (unsigned long)&mode);
+}

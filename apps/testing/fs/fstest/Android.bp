@@ -1,0 +1,28 @@
+cc_binary {
+    name: "fstest",
+    srcs: ["fstest_main.c"],
+    cflags: [
+        "-DFAR=",
+        "-DOK=0",
+        "-DERROR=-1",
+        "-DCONFIG_TESTING_FSTEST_MAXNAME=32",
+        "-DCONFIG_TESTING_FSTEST_MAXIO=347",
+        "-DCONFIG_TESTING_FSTEST_MAXOPEN=512",
+        "-DCONFIG_TESTING_FSTEST_NLOOPS=100",
+        "-DCONFIG_TESTING_FSTEST_MOUNTPT=\"/data\"",
+        "-DCONFIG_TESTING_FSTEST_MAXFILE=8192",
+        "-DCONFIG_TESTING_FSTEST_VERBOSE=1",
+        "-DDTYPE_FILE=DT_REG",
+    ],
+    static_libs: [
+        "libnuttx_libc",
+    ],
+    header_libs: [
+        "nuttx_libc_headers"
+    ],
+    defaults: [
+        "nuttx_libc_defaults"
+    ],
+    shared_libs: ["libcutils"],
+    proprietary: true,
+}

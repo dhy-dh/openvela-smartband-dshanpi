@@ -1,0 +1,45 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config TESTING_IRQNEST
+	tristate "IRQ nesting test"
+	default n
+	depends on ARCH_HAVE_IRQTRIGGER && ARCH_IRQPRIO
+	---help---
+		Enable irqnest test app
+
+if TESTING_IRQNEST
+
+config TESTING_IRQNEST_PROGNAME
+	string "Program name"
+	default "irqnest"
+	---help---
+		This is name of the program when NSH is used.
+
+config TESTING_IRQNEST_PRIORITY
+	int "Task priority"
+	default 100
+
+config TESTING_IRQNEST_STACKSIZE
+	int "stack size"
+	default DEFAULT_TASK_STACKSIZE
+
+config TESTING_IRQNEST_IRQ_LO
+	int "Low prio test IRQ number"
+	default 39
+
+config TESTING_IRQNEST_PRI_LO
+	int "Low prio IRQ priority"
+	default 1
+
+config TESTING_IRQNEST_IRQ_HI
+	int "High prio test IRQ number"
+	default 40
+
+config TESTING_IRQNEST_PRI_HI
+	int "High prio IRQ priority"
+	default 2
+
+endif

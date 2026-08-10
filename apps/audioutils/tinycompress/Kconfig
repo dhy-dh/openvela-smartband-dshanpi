@@ -1,0 +1,20 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config AUDIOUTILS_TINYCOMPRESS
+	bool "Enable tinycompress"
+	default n
+
+if AUDIOUTILS_TINYCOMPRESS
+
+config AUDIOUTILS_TINYCOMPRESS_CPLAY
+	bool "Enable tinycompress cplay tool"
+	default n
+
+config AUDIOUTILS_TINYCOMPRESS_CRECORD
+	bool "Enable tinycompress crecord tool"
+	default n
+
+endif # AUDIOUTILS_TINYCOMPRESS

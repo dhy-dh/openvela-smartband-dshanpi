@@ -1,0 +1,30 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+menuconfig GRAPHICS_LVGL
+	bool "Light and Versatile Graphic Library (LVGL)"
+	default n
+	---help---
+		Enable support for the LVGL GUI library.
+
+if GRAPHICS_LVGL
+
+config LV_OPTLEVEL
+	string "Customize compilation optimization level"
+	default ""
+
+config LV_DRAW_VG_LITE_INCLUDE
+	string "VG-Lite API header include path"
+	depends on LV_USE_DRAW_VG_LITE
+	default ""
+
+config LV_GPU_G2D_INCLUDE_PATH
+	string "include path of G2D header"
+	depends on LV_USE_DRAW_G2D
+	default ""
+
+osource "$APPSDIR/graphics/lvgl/lvgl/Kconfig"
+
+endif # GRAPHICS_LVGL

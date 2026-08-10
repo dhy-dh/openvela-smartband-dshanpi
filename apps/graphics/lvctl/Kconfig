@@ -1,0 +1,25 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config GRAPHICS_LVCTL
+	tristate "LVGL control utility"
+	default y
+	depends on GRAPHICS_LVGL
+	depends on LV_USE_NUTTX_LIBUV
+	depends on LV_USE_REMOTE_CTRL
+	---help---
+		LVGL control utility command line tool
+
+if GRAPHICS_LVCTL
+
+config GRAPHICS_LVCTL_PRIORITY
+	int "LVCTL priority"
+	default 100
+
+config GRAPHICS_LVCTL_STACKSIZE
+	int "LVCTL stack size"
+	default 4096
+
+endif

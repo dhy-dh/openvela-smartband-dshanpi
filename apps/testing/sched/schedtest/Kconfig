@@ -1,0 +1,25 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config TESTING_SCHEDTEST
+	tristate "Sched test"
+	default n
+	depends on TESTING_CMOCKA
+	---help---
+		Enable the Sched test
+		For all tests to be successful, you need to enable
+		CONFIG_SCHEDTEST in addition.
+
+if TESTING_SCHEDTEST
+
+config TESTING_SCHEDTEST_PRIORITY
+	int "Schedtest task priority"
+	default 100
+
+config TESTING_SCHEDTEST_STACKSIZE
+	int "Schedtest stack size"
+	default 4096
+
+endif

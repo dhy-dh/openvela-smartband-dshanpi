@@ -1,0 +1,34 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config TESTING_RPMSG
+	tristate "cmocka rpmsg test"
+	default n
+	---help---
+		Enable cmocka rpmsg test
+
+if TESTING_RPMSG
+	config TESTING_RPMSG_PRIORITY
+		int "cmocka rpmsgtest task priority"
+		default 100
+
+	config TESTING_RPMSG_STACKSIZE
+		int "cmocka rpmsgtest stack size"
+		default DEFAULT_TASK_STACKSIZE
+
+	config TESTING_RPMSGMTD
+		tristate "cmocka rpmsgmtd test"
+		default y
+		depends on (RPMSGMTD_SERVER && RAMMTD) || RPMSGMTD
+		---help---
+			Enable cmocka rpmsgmtd test
+
+	config TESTING_RPMSGBLK
+		tristate "cmocka rpmsgblk test"
+		default y
+		depends on BUILD_FLAT && (BLK_RPMSG_SERVER || BLK_RPMSG)
+		---help---
+			Enable cmocka rpmsgblk test
+endif

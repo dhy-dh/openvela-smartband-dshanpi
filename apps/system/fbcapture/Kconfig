@@ -1,0 +1,27 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+menuconfig FBCAPTURE
+	tristate "Framebuffer Capture Tool"
+	default n
+	depends on VIDEO_FB
+	---help---
+		A tool to capture the framebuffer and save it as a BMP image.
+
+if FBCAPTURE
+
+config FBCAPTURE_STACKSIZE
+	int "FBcapture stack size"
+	default 4096
+	---help---
+		The stack size to use the FBcapture tool.
+
+config FBCAPTURE_PRIORITY
+	int "FBcapture priority"
+	default 100
+	---help---
+		The priority to use the FBcapture tool.
+
+endif

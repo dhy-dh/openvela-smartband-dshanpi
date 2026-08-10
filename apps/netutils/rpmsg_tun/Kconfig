@@ -1,0 +1,39 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config NETUTILS_RPMSG_TUN
+	bool
+	depends on RPMSG && NET_TUN
+	default n
+	---help---
+		If NETUTILS_RPMSG_TUN is enabled, it allows using
+		a TUN device to send and receive data via RPMsg socket.
+
+config NETUTILS_RPMSG_TUN_CLIENT
+	tristate "Remote tun device with rpmsg socket client"
+	select NETUTILS_RPMSG_TUN
+	default n
+
+config NETUTILS_RPMSG_TUN_SERVER
+	tristate "Remote tun device with rpmsg socket server"
+	depends on NET_NETLINK
+	select NETUTILS_RPMSG_TUN
+	default n
+
+if NETUTILS_RPMSG_TUN
+
+config NETUTILS_RPMSG_TUN_PRIORITY
+	int "Remote tun device with rpmsg socket task priority"
+	default 100
+
+config NETUTILS_RPMSG_TUN_STACKSIZE
+	int "Remote tun device with rpmsg socket task stack size"
+	default 6144
+
+config NETUTILS_RPMSG_TUN_BUFSIZE
+	int "Remote tun buffer size"
+	default 2048
+
+endif

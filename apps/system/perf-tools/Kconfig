@@ -1,0 +1,22 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config PERF_TOOLS
+	tristate "Performance analysis utility"
+	default n
+	---help---
+		Performance analysis utility
+
+if PERF_TOOLS
+
+config PERF_TOOLS_PRIORITY
+	int "Perf tools task priority"
+	default 100
+
+config PERF_TOOLS_STACKSIZE
+	int "Perf tools stack size"
+	default DEFAULT_TASK_STACKSIZE
+
+endif

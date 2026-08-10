@@ -1,0 +1,20 @@
+type rpmsg_tun_server_exec, file_type, exec_type, vendor_file_type, file_type;
+
+type rpmsg_tun_server, domain;
+
+init_daemon_domain(rpmsg_tun_server);
+net_domain(rpmsg_tun_server);
+
+allow rpmsg_tun_server self:capability { net_admin net_raw net_bind_service };
+
+allow rpmsg_tun_server self:udp_socket ioctl;
+allowxperm rpmsg_tun_server self:udp_socket ioctl { SIOCSIFFLAGS SIOCSIFADDR SIOCSIFNETMASK };
+
+allow rpmsg_tun_server tun_device:chr_file { ioctl open read write };
+allowxperm rpmsg_tun_server tun_device:chr_file ioctl { SIOCSIFFLAGS SIOCGIFFLAGS SIOCSIFADDR SIOCSIFNETMASK TUNGETIFF TUNSETIFF TUNSETCARRIER };
+
+allow rpmsg_tun_server self:rpmsg_socket { connect create read write };
+
+allow rpmsg_tun_server self:tun_socket create;
+
+allow rpmsg_tun_server { self unlabeled }:decnet_socket { create bind listen accept connect read write getopt setopt };

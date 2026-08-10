@@ -1,0 +1,23 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config TESTING_PERF
+	tristate "Perf event test"
+	default n
+	depends on SCHED_PERF_EVENTS
+	---help---
+		Support Perf event test
+
+if TESTING_PERF
+
+config TESTING_PERF_PRIORITY
+	int "Perf event test task priority"
+	default 100
+
+config TESTING_PERF_STACKSIZE
+	int "Perf event test stack size"
+	default DEFAULT_TASK_STACKSIZE
+
+endif
