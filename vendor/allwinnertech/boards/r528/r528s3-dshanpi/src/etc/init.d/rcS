@@ -1,0 +1,62 @@
+/****************************************************************************
+ *
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ *
+ ****************************************************************************/
+
+#include <nuttx/config.h>
+
+set +e  
+
+/* NTP maintains UTC.  Keep local-time users, including the UI clock, on
+ * China Standard Time without baking network credentials into the app. */
+export TZ CST-8
+
+#ifdef CONFIG_DSHANPI_NSH
+#include "rcS.nsh"
+#endif
+
+/* Initialize the DshanPi codec gains documented by the board guide before
+ * the media graph opens /dev/audio/pcm0p.  Per-player volume stays in the
+ * media graph so pause/resume fades do not abruptly gate the codec. */
+#ifdef CONFIG_COMPONENTS_AW_ALSA_UTILS_AMIXER
+amixer set 6 180
+amixer set 7 180
+amixer set 15 7
+#endif
+
+/* The native UI drives pcm0p through NxPlayer directly.  Keep mediad for
+ * other board configurations, but do not spend its worker stacks or leave a
+ * second audio owner running beside openvela_ui. */
+#if defined(CONFIG_MEDIA_SERVER) && !defined(CONFIG_LVX_USE_DEMO_OPENVELA_UI)
+mediad &
+sleep 1
+#endif
+
+/* Credentials stay in the writable /data partition.  The helper starts NTP
+ * only after DHCP succeeds, so its first DNS lookup has a usable route. */
+#ifdef CONFIG_IEEE80211_REALTEK_WIFI
+if [ -f /data/etc/wifi/wapi.conf ]
+then
+  sh /etc/wifi/start_wifi.sh &
+fi
+#endif
+
+#ifdef CONFIG_LVX_USE_DEMO_OPENVELA_UI
+openvela_ui &
+#else
+sh /data/xiaozhi.sh &
+#endif

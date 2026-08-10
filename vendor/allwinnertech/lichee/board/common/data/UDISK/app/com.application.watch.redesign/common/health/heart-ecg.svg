@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="224" viewBox="0 0 256 224">
+  <defs>
+    <linearGradient id="heartFill" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff766a"/>
+      <stop offset="1" stop-color="#ff4438"/>
+    </linearGradient>
+  </defs>
+  <path
+    d="M128 211C107 192 53 153 33 121C11 85 23 42 60 29C86 20 111 31 128 53C145 31 170 20 196 29C233 42 245 85 223 121C203 153 149 192 128 211Z"
+    fill="url(#heartFill)"
+    stroke="#347ff0"
+    stroke-width="9"
+    stroke-linejoin="round"/>
+  <path
+    d="M40 119H83L99 91L119 151L143 78L164 119H216"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="11"
+    stroke-linecap="round"
+    stroke-linejoin="round"/>
+</svg>

@@ -1,0 +1,9 @@
+OpenVela Quick App Player logo and control icons
+
+Source:
+https://github.com/open-vela/packages_fe_examples/tree/dev/player/src/common
+
+Copyright (C) 2024 Xiaomi Corporation
+Licensed under the Apache License, Version 2.0.
+
+The logo and player control icons are used unchanged in the music module.

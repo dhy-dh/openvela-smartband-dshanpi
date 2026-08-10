@@ -1,0 +1,167 @@
+{
+  "package": "com.application.watch.redesign",
+  "name": "smart-band-ui-redesign",
+  "versionName": "1.0.12",
+  "versionCode": 13,
+  "minPlatformVersion": 1000,
+  "icon": "/common/background.png",
+  "deviceTypeList": [
+    "watch"
+  ],
+  "features": [
+    {
+      "name": "system.app"
+    },
+    {
+      "name": "system.router"
+    },
+    {
+      "name": "system.battery"
+    },
+    {
+      "name": "system.event"
+    },
+    {
+      "name": "system.file"
+    },
+    {
+      "name": "system.storage"
+    },
+    {
+      "name": "system.fetch"
+    },
+    {
+      "name": "system.geolocation"
+    },
+    {
+      "name": "system.sensor"
+    },
+    {
+      "name": "system.device"
+    },
+    {
+      "name": "system.vibrator"
+    },
+    {
+      "name": "system.interconnect"
+    },
+    {
+      "name": "system.audio"
+    },
+    {
+      "name": "system.record"
+    },
+    {
+      "name": "system.uploadtask"
+    }
+  ],
+  "permissions": [
+    {
+      "name": "hapjs.permission.LOCATION"
+    }
+  ],
+  "config": {
+    "logLevel": "log",
+    "designWidth": "device-width",
+    "background": {
+      "features": [
+        "system.audio"
+      ]
+    }
+  },
+  "router": {
+    "entry": "pages/index",
+    "pages": {
+      "pages/index": {
+        "component": "index"
+      },
+      "pages/customize": {
+        "component": "customize"
+      },
+      "pages/backgrounds": {
+        "component": "backgrounds"
+      },
+      "pages/actions": {
+        "component": "actions"
+      },
+      "pages/weather": {
+        "component": "weather"
+      },
+      "pages/sport": {
+        "component": "sport"
+      },
+      "pages/sportmode": {
+        "component": "sportmode"
+      },
+      "pages/sportheartrate": {
+        "component": "sportheartrate"
+      },
+      "pages/sportexit": {
+        "component": "sportexit"
+      },
+      "pages/heartratealert": {
+        "component": "heartratealert"
+      },
+      "pages/health": {
+        "component": "health"
+      },
+      "pages/music": {
+        "component": "music"
+      },
+      "pages/musicplayer": {
+        "component": "musicplayer"
+      },
+      "pages/musiclist": {
+        "component": "musiclist"
+      },
+      "pages/musicvolume": {
+        "component": "musicvolume"
+      },
+      "pages/heartrate": {
+        "component": "heartrate"
+      },
+      "pages/bloodpressure": {
+        "component": "bloodpressure"
+      },
+      "pages/steps": {
+        "component": "steps"
+      },
+      "pages/celebration": {
+        "component": "celebration"
+      },
+      "pages/chargingnotice": {
+        "component": "chargingnotice"
+      },
+      "pages/cities": {
+        "component": "cities"
+      },
+      "pages/weatherdetail": {
+        "component": "weatherdetail"
+      },
+      "pages/notificationpreview": {
+        "component": "notificationpreview"
+      },
+      "pages/notificationhub": {
+        "component": "notificationhub"
+      },
+      "pages/notification": {
+        "component": "notification"
+      },
+      "pages/notifications": {
+        "component": "notifications"
+      },
+      "pages/assistant": {
+        "component": "assistant"
+      }
+    }
+  },
+  "minAPILevel": 1,
+  "packageInfo": {
+    "toolkit": "2.0.5",
+    "timeStamp": "2026-08-05T19:05:26.072Z",
+    "node": "v24.15.0",
+    "platform": "win32",
+    "arch": "x64",
+    "component": true
+  }
+}

@@ -1,0 +1,7 @@
+Vela_input_method
+Copyright (c) 2024 NEORUAA
+Source: https://github.com/NEORUAA/Vela_input_method
+License: MIT
+
+This component is included because it is linked from the Xiaomi Vela JS
+application documentation as the input-method extension component.
