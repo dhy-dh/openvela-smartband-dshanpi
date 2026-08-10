@@ -1,0 +1,366 @@
+# Copyright 2023 The Pigweed Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy of
+# the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations under
+# the License.
+
+load(
+    "@pw_toolchain//cc_toolchain:defs.bzl",
+    "ALL_AR_ACTIONS",
+    "ALL_ASM_ACTIONS",
+    "ALL_COVERAGE_ACTIONS",
+    "ALL_CPP_COMPILER_ACTIONS",
+    "ALL_C_COMPILER_ACTIONS",
+    "ALL_LINK_ACTIONS",
+    "ALL_OBJCOPY_ACTIONS",
+    "ALL_OBJDUMP_ACTIONS",
+    "ALL_STRIP_ACTIONS",
+    "pw_cc_action_config",
+    "pw_cc_flag_set",
+    "pw_cc_tool",
+    "pw_cc_toolchain",
+    "pw_cc_toolchain_feature",
+)
+
+package(default_visibility = ["//visibility:public"])
+
+licenses(["notice"])
+
+filegroup(name = "empty")
+
+pw_cc_toolchain_feature(
+    name = "macos_stdlib",
+    cxx_builtin_include_directories = [
+        "%package(@llvm_toolchain//)%/include/c++/v1",
+        "%package(@llvm_toolchain//)%/lib/clang/17/include",
+    ],
+    linker_files = ["@llvm_toolchain//:lib/libc++.a"],
+    target_compatible_with = ["@platforms//os:macos"],
+)
+
+pw_cc_toolchain_feature(
+    name = "linux_sysroot",
+    builtin_sysroot = "external/linux_sysroot",
+    cxx_builtin_include_directories = [
+        "%package(@llvm_toolchain//)%/include/x86_64-unknown-linux-gnu/c++/v1",
+        "%package(@llvm_toolchain//)%/include/c++/v1",
+        "%package(@llvm_toolchain//)%/lib/clang/17/include",
+        "%sysroot%/usr/local/include",
+        "%sysroot%/usr/include/x86_64-linux-gnu",
+        "%sysroot%/usr/include",
+    ],
+    linkopts = [
+        "-pthread",
+        "-stdlib=libc++",
+        "--rtlib=compiler-rt",
+        "--unwindlib=libunwind",
+    ],
+)
+
+# Although we use similar warnings for clang and arm_gcc, we don't have one
+# centralized list, since we might want to use different warnings based on the
+# compiler in the future.
+pw_cc_flag_set(
+    name = "warnings",
+    actions = ALL_C_COMPILER_ACTIONS + ALL_CPP_COMPILER_ACTIONS,
+    flags = [
+        "-Wall",
+        "-Wextra",
+        # Make all warnings errors, except for the exemptions below.
+        "-Werror",
+        "-Wno-error=cpp",  # preprocessor #warning statement
+        "-Wno-error=deprecated-declarations",  # [[deprecated]] attribute
+    ],
+)
+
+pw_cc_flag_set(
+    name = "no_unknown_warning_option",
+    actions = ALL_C_COMPILER_ACTIONS + ALL_CPP_COMPILER_ACTIONS,
+    flags = [
+        "-Wno-unknown-warning-option",
+    ],
+)
+
+# TODO: b/311257445 - These tools and action sets are living in this BUILD file
+# temporarily; as they stabilize they'll be moved out into a template that can
+# be reused for arbitrary LLVM toolchains.
+pw_cc_tool(
+    name = "ar_tool",
+    tool = "@llvm_toolchain//:bin/llvm-ar",
+)
+
+pw_cc_action_config(
+    name = "ar",
+    action_names = ALL_AR_ACTIONS,
+    implies = [
+        "archiver_flags",
+        "linker_param_file",
+    ],
+    tools = [":ar_tool"],
+)
+
+pw_cc_tool(
+    name = "clang++_tool",
+    tool = "@llvm_toolchain//:bin/clang++",
+)
+
+pw_cc_action_config(
+    name = "clang++",
+    action_names = ALL_CPP_COMPILER_ACTIONS,
+    tools = [":clang++_tool"],
+)
+
+pw_cc_tool(
+    name = "clang_tool",
+    tool = "@llvm_toolchain//:bin/clang",
+)
+
+pw_cc_action_config(
+    name = "clang",
+    action_names = ALL_ASM_ACTIONS + ALL_C_COMPILER_ACTIONS,
+    tools = [":clang_tool"],
+)
+
+pw_cc_action_config(
+    name = "lld",
+    action_names = ALL_LINK_ACTIONS,
+    tools = [":clang++_tool"],  # Use the clang++ frontend to drive lld.
+)
+
+pw_cc_tool(
+    name = "llvm_cov_tool",
+    tool = "@llvm_toolchain//:bin/llvm-cov",
+)
+
+pw_cc_action_config(
+    name = "llvm-cov",
+    action_names = ALL_COVERAGE_ACTIONS,
+    tools = [":llvm_cov_tool"],
+)
+
+pw_cc_tool(
+    name = "llvm_objcopy_tool",
+    tool = "@llvm_toolchain//:bin/llvm-objcopy",
+)
+
+pw_cc_action_config(
+    name = "llvm-objcopy",
+    action_names = ALL_OBJCOPY_ACTIONS,
+    tools = [":llvm_objcopy_tool"],
+)
+
+pw_cc_tool(
+    name = "llvm_objdump_tool",
+    tool = "@llvm_toolchain//:bin/llvm-objdump",
+)
+
+pw_cc_action_config(
+    name = "llvm-objdump",
+    action_names = ALL_OBJDUMP_ACTIONS,
+    tools = [":llvm_objdump_tool"],
+)
+
+pw_cc_tool(
+    name = "llvm_strip_tool",
+    tool = "@llvm_toolchain//:bin/llvm-strip",
+)
+
+pw_cc_action_config(
+    name = "llvm-strip",
+    action_names = ALL_STRIP_ACTIONS,
+    tools = [":llvm_strip_tool"],
+)
+
+filegroup(
+    name = "all_linux_files",
+    srcs = [
+        "@linux_sysroot//:all",
+        "@llvm_toolchain//:all",
+    ],
+)
+
+pw_cc_toolchain(
+    name = "host_toolchain_macos",
+    abi_libc_version = "unknown",
+    abi_version = "unknown",
+    action_config_flag_sets = [
+        ":warnings",
+        "@pw_toolchain//flag_sets:no_default_cpp_stdlib",
+        "@pw_toolchain//flag_sets:c++17",
+        "@pw_toolchain//flag_sets:debugging",
+        "@pw_toolchain//flag_sets:reduced_size",
+        "@pw_toolchain//flag_sets:no_canonical_prefixes",
+        "@pw_toolchain//flag_sets:no_rtti",
+        "@pw_toolchain//flag_sets:wno_register",
+        "@pw_toolchain//flag_sets:wnon_virtual_dtor",
+    ],
+    action_configs = [
+        ":ar",
+        ":clang",
+        ":clang++",
+        ":lld",
+        ":llvm-cov",
+        ":llvm-objcopy",
+        ":llvm-objdump",
+        ":llvm-strip",
+    ],
+    all_files = "@llvm_toolchain//:all",
+    ar_files = "@llvm_toolchain//:all",
+    as_files = "@llvm_toolchain//:all",
+    compiler = "unknown",
+    compiler_files = "@llvm_toolchain//:all",
+    coverage_files = "@llvm_toolchain//:all",
+    dwp_files = "@llvm_toolchain//:all",
+    feature_deps = [
+        "@pw_toolchain//features/macos:macos_sysroot",
+        ":macos_stdlib",
+    ],
+    host_system_name = "unknown",
+    linker_files = "@llvm_toolchain//:all",
+    objcopy_files = "@llvm_toolchain//:all",
+    strip_files = "@llvm_toolchain//:all",
+    supports_param_files = 0,
+    # The implementations of some "legacy features" built into Bazel use
+    # `target_libc` to determine if a toolchain targets MacOS,
+    # https://github.com/bazelbuild/bazel/blob/release-7.0.0-pre.20230816.3rc1/src/main/java/com/google/devtools/build/lib/rules/cpp/CcModule.java#L1301-L1304
+    target_cpu = "darwin",
+    target_libc = "macosx",
+    target_system_name = "unknown",
+    toolchain_identifier = "host-toolchain-macos",
+)
+
+toolchain(
+    name = "host_cc_toolchain_macos",
+    exec_compatible_with = [
+        "@platforms//os:macos",
+    ],
+    target_compatible_with = [
+        "@platforms//os:macos",
+    ],
+    toolchain = ":host_toolchain_macos",
+    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
+)
+
+pw_cc_toolchain(
+    name = "host_toolchain_linux",
+    abi_libc_version = "unknown",
+    abi_version = "unknown",
+    action_config_flag_sets = [
+        ":warnings",
+    ],
+    all_files = ":all_linux_files",
+    ar = "@llvm_toolchain//:bin/llvm-ar",
+    ar_files = ":all_linux_files",
+    as_files = ":all_linux_files",
+    compiler = "unknown",
+    compiler_files = ":all_linux_files",
+    coverage_files = ":all_linux_files",
+    cpp = "@llvm_toolchain//:bin/clang++",
+    dwp_files = ":all_linux_files",
+    feature_deps = [
+        ":linux_sysroot",
+        "@pw_toolchain//features:c++17",
+        "@pw_toolchain//features:debugging",
+        "@pw_toolchain//features:reduced_size",
+        "@pw_toolchain//features:no_canonical_prefixes",
+        "@pw_toolchain//features:no_rtti",
+        "@pw_toolchain//features:wno_register",
+        "@pw_toolchain//features:wnon_virtual_dtor",
+    ],
+    gcc = "@llvm_toolchain//:bin/clang",
+    gcov = "@llvm_toolchain//:bin/llvm-cov",
+    host_system_name = "unknown",
+    ld = "@llvm_toolchain//:bin/clang++",
+    linker_files = ":all_linux_files",
+    objcopy = "@llvm_toolchain//:bin/llvm-objcopy",
+    objcopy_files = ":all_linux_files",
+    objdump = "@llvm_toolchain//:bin/llvm-objdump",
+    strip = "@llvm_toolchain//:bin/llvm-strip",
+    strip_files = ":all_linux_files",
+    supports_param_files = 0,
+    target_cpu = "unknown",
+    target_libc = "unknown",
+    target_system_name = "unknown",
+    toolchain_identifier = "host-toolchain-linux",
+)
+
+# A toolchain for Kythe. Identical to the regular Linux toolchain except for
+# one extra feature, ":no_unknown_warning_option".
+pw_cc_toolchain(
+    name = "host_toolchain_linux_kythe",
+    abi_libc_version = "unknown",
+    abi_version = "unknown",
+    action_config_flag_sets = [
+        ":warnings",
+        ":no_unknown_warning_option",
+    ],
+    all_files = ":all_linux_files",
+    ar = "@llvm_toolchain//:bin/llvm-ar",
+    ar_files = ":all_linux_files",
+    as_files = ":all_linux_files",
+    compiler = "unknown",
+    compiler_files = ":all_linux_files",
+    coverage_files = ":all_linux_files",
+    cpp = "@llvm_toolchain//:bin/clang++",
+    dwp_files = ":all_linux_files",
+    feature_deps = [
+        ":linux_sysroot",
+        "@pw_toolchain//features:c++17",
+        "@pw_toolchain//features:debugging",
+        "@pw_toolchain//features:reduced_size",
+        "@pw_toolchain//features:no_canonical_prefixes",
+        "@pw_toolchain//features:no_rtti",
+        "@pw_toolchain//features:wno_register",
+        "@pw_toolchain//features:wnon_virtual_dtor",
+    ],
+    gcc = "@llvm_toolchain//:bin/clang",
+    gcov = "@llvm_toolchain//:bin/llvm-cov",
+    host_system_name = "unknown",
+    ld = "@llvm_toolchain//:bin/clang++",
+    linker_files = ":all_linux_files",
+    objcopy = "@llvm_toolchain//:bin/llvm-objcopy",
+    objcopy_files = ":all_linux_files",
+    objdump = "@llvm_toolchain//:bin/llvm-objdump",
+    strip = "@llvm_toolchain//:bin/llvm-strip",
+    strip_files = ":all_linux_files",
+    supports_param_files = 0,
+    target_cpu = "unknown",
+    target_libc = "unknown",
+    target_system_name = "unknown",
+    toolchain_identifier = "host-toolchain-linux",
+)
+
+toolchain(
+    name = "host_cc_toolchain_linux",
+    exec_compatible_with = [
+        "@platforms//os:linux",
+    ],
+    target_compatible_with = [
+        "@platforms//os:linux",
+    ],
+    toolchain = ":host_toolchain_linux",
+    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
+)
+
+toolchain(
+    name = "host_cc_toolchain_linux_kythe",
+    exec_compatible_with = [
+        "@platforms//os:linux",
+    ],
+    target_compatible_with = [
+        "@platforms//os:linux",
+    ],
+    # This toolchain will only be selected in toolchain resolution if this
+    # config_setting is active.
+    target_settings = ["//pw_build:kythe"],
+    toolchain = ":host_toolchain_linux_kythe",
+    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
+)

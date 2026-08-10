@@ -1,0 +1,95 @@
+# Copyright 2022 The Pigweed Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy of
+# the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations under
+# the License.
+
+import("//build_overrides/pi_pico.gni")
+import("//build_overrides/pigweed.gni")
+
+import("$dir_pw_build/target_types.gni")
+import("$dir_pw_docgen/docs.gni")
+import("$dir_pw_toolchain/arm_gcc/toolchains.gni")
+import("$dir_pw_toolchain/generate_toolchain.gni")
+
+declare_args() {
+  pw_targets_ENABLE_RP2040_TEST_RUNNER = false
+}
+
+if (current_toolchain != default_toolchain) {
+  pw_source_set("pico_logging_test_main") {
+    deps = [
+      "$dir_pw_log",
+      "$dir_pw_sys_io",
+      "$dir_pw_unit_test:logging_event_handler",
+      "$dir_pw_unit_test:pw_unit_test",
+    ]
+    sources = [ "pico_logging_test_main.cc" ]
+  }
+
+  # We don't want this linked into the boot_stage2 binary, so make the printf
+  # float config a source set added to pw_build_LINK_DEPS (which is dropped on
+  # the boot_stage2 binary) rather than as a default_config.
+  pw_source_set("float_printf_adapter") {
+    all_dependent_configs = [ "$dir_pw_toolchain/arm_gcc:enable_float_printf" ]
+  }
+}
+
+generate_toolchain("rp2040") {
+  _excluded_members = [
+    "defaults",
+    "name",
+  ]
+  _toolchain_base = pw_toolchain_arm_gcc.cortex_m0plus_size_optimized
+  forward_variables_from(_toolchain_base, "*", _excluded_members)
+
+  # For now, no Pigweed configurations set up.
+  defaults = {
+    forward_variables_from(_toolchain_base.defaults, "*")
+
+    pw_build_EXECUTABLE_TARGET_TYPE = "pico_executable"
+    pw_build_EXECUTABLE_TARGET_TYPE_FILE =
+        get_path_info("pico_executable.gni", "abspath")
+    if (pw_targets_ENABLE_RP2040_TEST_RUNNER) {
+      _test_runner_script = "py/rp2040_utils/unit_test_client.py"
+      pw_unit_test_AUTOMATIC_RUNNER =
+          get_path_info(_test_runner_script, "abspath")
+    }
+    pw_unit_test_MAIN = "$dir_pigweed/targets/rp2040:pico_logging_test_main"
+    pw_assert_BACKEND = dir_pw_assert_basic
+    pw_log_BACKEND = dir_pw_log_basic
+    pw_sys_io_BACKEND = dir_pw_sys_io_rp2040
+
+    pw_sync_INTERRUPT_SPIN_LOCK_BACKEND =
+        "$dir_pw_sync_baremetal:interrupt_spin_lock"
+    pw_chrono_SYSTEM_CLOCK_BACKEND = "$dir_pw_chrono_rp2040:system_clock"
+    pw_sync_MUTEX_BACKEND = "$dir_pw_sync_baremetal:mutex"
+    pw_rpc_CONFIG = "$dir_pw_rpc:disable_global_mutex"
+
+    # Silence GN variable overwrite warning.
+    pw_build_LINK_DEPS = []
+
+    pw_build_LINK_DEPS = [
+      "$dir_pw_assert:impl",
+      "$dir_pw_log:impl",
+      get_path_info(":float_printf_adapter", "abspath"),
+    ]
+
+    default_configs += [ "$dir_pw_build:extra_strict_warnings" ]
+
+    current_cpu = "arm"
+    current_os = ""
+  }
+}
+
+pw_doc_group("target_docs") {
+  sources = [ "target_docs.rst" ]
+}

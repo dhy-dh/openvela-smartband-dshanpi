@@ -1,0 +1,299 @@
+# Copyright 2023 The Pigweed Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy of
+# the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations under
+# the License.
+
+import("//build_overrides/pigweed.gni")
+
+import("$dir_pw_allocator/allocator.gni")
+import("$dir_pw_bloat/bloat.gni")
+import("$dir_pw_build/target_types.gni")
+import("$dir_pw_docgen/docs.gni")
+import("$dir_pw_unit_test/test.gni")
+
+config("default_config") {
+  include_dirs = [ "public" ]
+}
+
+config("enable_heap_poison") {
+  if (pw_allocator_POISON_HEAP) {
+    defines = [ "PW_ALLOCATOR_POISON_ENABLE=1" ]
+  }
+}
+
+group("pw_allocator") {
+  public_deps = [
+    ":allocator",
+    ":block",
+    ":freelist",
+    ":freelist_heap",
+  ]
+}
+
+pw_source_set("allocator") {
+  public_configs = [ ":default_config" ]
+  public = [ "public/pw_allocator/allocator.h" ]
+  public_deps = [ dir_pw_status ]
+  deps = [
+    dir_pw_assert,
+    dir_pw_bytes,
+  ]
+  sources = [ "allocator.cc" ]
+}
+
+pw_source_set("allocator_metric_proxy") {
+  public_configs = [ ":default_config" ]
+  public = [ "public/pw_allocator/allocator_metric_proxy.h" ]
+  public_deps = [
+    ":allocator",
+    dir_pw_metric,
+    dir_pw_status,
+  ]
+  deps = [ dir_pw_assert ]
+  sources = [ "allocator_metric_proxy.cc" ]
+}
+
+pw_source_set("block") {
+  public_configs = [
+    ":default_config",
+    ":enable_heap_poison",
+  ]
+  public = [ "public/pw_allocator/block.h" ]
+  public_deps = [
+    "$dir_pw_third_party/fuchsia:stdcompat",
+    dir_pw_bytes,
+    dir_pw_result,
+    dir_pw_span,
+    dir_pw_status,
+  ]
+  deps = [ dir_pw_assert ]
+  sources = [ "block.cc" ]
+}
+
+pw_source_set("fallback_allocator") {
+  public_configs = [ ":default_config" ]
+  public = [ "public/pw_allocator/fallback_allocator.h" ]
+  public_deps = [
+    ":allocator",
+    dir_pw_assert,
+    dir_pw_status,
+  ]
+  sources = [ "fallback_allocator.cc" ]
+}
+
+pw_source_set("freelist") {
+  public_configs = [ ":default_config" ]
+  public = [ "public/pw_allocator/freelist.h" ]
+  public_deps = [
+    "$dir_pw_containers:vector",
+    dir_pw_span,
+    dir_pw_status,
+  ]
+  sources = [ "freelist.cc" ]
+}
+
+pw_source_set("freelist_heap") {
+  public_configs = [ ":default_config" ]
+  public = [ "public/pw_allocator/freelist_heap.h" ]
+  public_deps = [
+    ":block",
+    ":freelist",
+  ]
+  deps = [
+    dir_pw_assert,
+    dir_pw_log,
+    dir_pw_span,
+  ]
+  sources = [ "freelist_heap.cc" ]
+}
+
+pw_source_set("libc_allocator") {
+  public_configs = [ ":default_config" ]
+  public = [ "public/pw_allocator/libc_allocator.h" ]
+  public_deps = [ ":allocator" ]
+  deps = [
+    dir_pw_assert,
+    dir_pw_bytes,
+  ]
+  sources = [ "libc_allocator.cc" ]
+}
+
+pw_source_set("null_allocator") {
+  public_configs = [ ":default_config" ]
+  public = [ "public/pw_allocator/null_allocator.h" ]
+  public_deps = [ ":allocator" ]
+}
+
+pw_source_set("simple_allocator") {
+  public_configs = [ ":default_config" ]
+  public = [ "public/pw_allocator/simple_allocator.h" ]
+  public_deps = [
+    ":allocator",
+    ":block",
+    dir_pw_bytes,
+  ]
+}
+
+pw_source_set("split_free_list_allocator") {
+  public_configs = [ ":default_config" ]
+  public = [ "public/pw_allocator/split_free_list_allocator.h" ]
+  public_deps = [
+    ":allocator",
+    ":block",
+    dir_pw_bytes,
+    dir_pw_result,
+    dir_pw_status,
+  ]
+  deps = [ dir_pw_assert ]
+  sources = [ "split_free_list_allocator.cc" ]
+}
+
+pw_size_diff("allocator_size_report") {
+  title = "Sizes of various pw_allocator implementations"
+  binaries = [
+    {
+      target = "size_report:split_free_list_allocator"
+      base = "$dir_pw_bloat:bloat_base"
+      label = "SplitFreeListAllocator"
+    },
+    {
+      target = "size_report:split_free_list_allocator_with_unique_ptr"
+      base = "size_report:split_free_list_allocator"
+      label = "Allocator::MakeUnique and UniquePtr"
+    },
+    {
+      target = "size_report:split_free_list_allocator_with_metric_proxy"
+      base = "size_report:split_free_list_allocator"
+      label = "AllocatorMetricProxy wrapping another allocator"
+    },
+  ]
+}
+
+pw_test_group("tests") {
+  tests = [
+    ":allocator_test",
+    ":allocator_metric_proxy_test",
+    ":block_test",
+    ":fallback_allocator_test",
+    ":freelist_test",
+    ":freelist_heap_test",
+    ":libc_allocator_test",
+    ":null_allocator_test",
+    ":simple_allocator_test",
+    ":split_free_list_allocator_test",
+    ":unique_ptr_test",
+  ]
+}
+
+pw_source_set("allocator_testing") {
+  public = [ "public/pw_allocator/allocator_testing.h" ]
+  public_deps = [
+    ":allocator",
+    ":block",
+    ":simple_allocator",
+    dir_pw_bytes,
+    dir_pw_unit_test,
+  ]
+  deps = [ dir_pw_assert ]
+  sources = [ "allocator_testing.cc" ]
+}
+
+pw_test("allocator_test") {
+  deps = [
+    ":allocator",
+    ":allocator_testing",
+    dir_pw_bytes,
+  ]
+  sources = [ "allocator_test.cc" ]
+}
+
+pw_test("allocator_metric_proxy_test") {
+  deps = [
+    ":allocator_metric_proxy",
+    ":allocator_testing",
+  ]
+  sources = [ "allocator_metric_proxy_test.cc" ]
+}
+
+pw_test("block_test") {
+  configs = [ ":enable_heap_poison" ]
+  deps = [
+    ":block",
+    dir_pw_span,
+  ]
+  sources = [ "block_test.cc" ]
+}
+
+pw_test("fallback_allocator_test") {
+  deps = [
+    ":allocator_testing",
+    ":fallback_allocator",
+    dir_pw_status,
+  ]
+  sources = [ "fallback_allocator_test.cc" ]
+}
+
+pw_test("freelist_test") {
+  deps = [
+    ":freelist",
+    dir_pw_span,
+    dir_pw_status,
+  ]
+  sources = [ "freelist_test.cc" ]
+}
+
+pw_test("freelist_heap_test") {
+  deps = [ ":freelist_heap" ]
+  sources = [ "freelist_heap_test.cc" ]
+}
+
+pw_test("libc_allocator_test") {
+  deps = [ ":libc_allocator" ]
+  sources = [ "libc_allocator_test.cc" ]
+}
+
+pw_test("null_allocator_test") {
+  deps = [ ":null_allocator" ]
+  sources = [ "null_allocator_test.cc" ]
+}
+
+pw_test("simple_allocator_test") {
+  deps = [
+    ":allocator_testing",
+    ":simple_allocator",
+  ]
+  sources = [ "simple_allocator_test.cc" ]
+}
+
+pw_test("split_free_list_allocator_test") {
+  deps = [
+    ":allocator_testing",
+    ":split_free_list_allocator",
+    "$dir_pw_containers:vector",
+    dir_pw_bytes,
+  ]
+  sources = [ "split_free_list_allocator_test.cc" ]
+}
+
+pw_test("unique_ptr_test") {
+  deps = [ ":allocator_testing" ]
+  sources = [ "unique_ptr_test.cc" ]
+}
+
+pw_doc_group("docs") {
+  inputs = [
+    "doc_resources/pw_allocator_heap_visualizer_demo.png",
+    "public/pw_allocator/simple_allocator.h",
+  ]
+  sources = [ "docs.rst" ]
+  report_deps = [ ":allocator_size_report" ]
+}

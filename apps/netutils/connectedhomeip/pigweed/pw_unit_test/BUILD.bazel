@@ -1,0 +1,328 @@
+# Copyright 2019 The Pigweed Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy of
+# the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations under
+# the License.
+
+load("@rules_python//python:proto.bzl", "py_proto_library")
+load(
+    "//pw_build:pigweed.bzl",
+    "pw_cc_binary",
+    "pw_cc_library",
+    "pw_cc_test",
+)
+load("//pw_protobuf_compiler:pw_proto_library.bzl", "pw_proto_library")
+
+package(default_visibility = ["//visibility:public"])
+
+licenses(["notice"])
+
+pw_cc_library(
+    name = "config",
+    hdrs = ["public/pw_unit_test/config.h"],
+    includes = ["public"],
+    deps = [
+        "//pw_polyfill",
+    ],
+)
+
+alias(
+    name = "pw_unit_test",
+    actual = "@pigweed//targets:pw_unit_test_googletest_backend",
+)
+
+pw_cc_library(
+    name = "light",
+    srcs = [
+        "framework.cc",
+        "public/pw_unit_test/internal/framework.h",
+    ],
+    hdrs = ["public_overrides/gtest/gtest.h"],
+    includes = [
+        "public",
+        "public_overrides",
+    ],
+    deps = [
+        ":config",
+        ":event_handler",
+        "//pw_assert",
+        "//pw_polyfill",
+        "//pw_preprocessor",
+        "//pw_span",
+        "//pw_string",
+    ],
+)
+
+# Identifies when the light framework is being used.
+config_setting(
+    name = "light_setting",
+    flag_values = {
+        "@pigweed//targets:pw_unit_test_googletest_backend": "@pigweed//pw_unit_test:light",
+    },
+)
+
+config_setting(
+    name = "gtest_setting",
+    flag_values = {
+        "@pigweed//targets:pw_unit_test_googletest_backend": "@com_google_googletest//:gtest",
+    },
+)
+
+pw_cc_library(
+    name = "event_handler",
+    hdrs = ["public/pw_unit_test/event_handler.h"],
+    includes = ["public"],
+)
+
+pw_cc_library(
+    name = "googletest_style_event_handler",
+    srcs = ["googletest_style_event_handler.cc"],
+    hdrs = ["public/pw_unit_test/googletest_style_event_handler.h"],
+    deps = [
+        ":event_handler",
+        "//pw_preprocessor",
+    ],
+)
+
+pw_cc_library(
+    name = "googletest_handler_adapter",
+    testonly = True,
+    srcs = ["googletest_handler_adapter.cc"],
+    hdrs = ["public/pw_unit_test/googletest_handler_adapter.h"],
+    includes = ["public"],
+    deps = [
+        ":event_handler",
+        "//pw_preprocessor",
+        "@com_google_googletest//:gtest",
+    ],
+)
+
+pw_cc_library(
+    name = "googletest_test_matchers",
+    testonly = True,
+    hdrs = ["public/pw_unit_test/googletest_test_matchers.h"],
+    includes = ["public"],
+    deps = [
+        "//pw_result",
+        "//pw_status",
+        "@com_google_googletest//:gtest",
+    ],
+)
+
+pw_cc_test(
+    name = "googletest_test_matchers_test",
+    srcs = ["googletest_test_matchers_test.cc"],
+    deps = [
+        ":googletest_test_matchers",
+    ],
+)
+
+pw_cc_library(
+    name = "simple_printing_event_handler",
+    srcs = ["simple_printing_event_handler.cc"],
+    hdrs = [
+        "public/pw_unit_test/simple_printing_event_handler.h",
+    ],
+    includes = [
+        "public",
+    ],
+    deps = [
+        ":googletest_style_event_handler",
+        "//pw_preprocessor",
+    ],
+)
+
+pw_cc_library(
+    name = "simple_printing_main",
+    srcs = [
+        "simple_printing_main.cc",
+    ],
+    deps = [
+        ":pw_unit_test",
+        ":simple_printing_event_handler",
+        "//pw_span",
+        "//pw_sys_io",
+    ],
+)
+
+pw_cc_library(
+    name = "printf_event_handler",
+    hdrs = ["public/pw_unit_test/printf_event_handler.h"],
+    deps = [
+        ":googletest_style_event_handler",
+        "//pw_preprocessor",
+    ],
+)
+
+pw_cc_library(
+    name = "printf_main",
+    srcs = ["printf_main.cc"],
+    deps = [
+        ":printf_event_handler",
+        ":pw_unit_test",
+    ],
+)
+
+pw_cc_library(
+    name = "logging_event_handler",
+    srcs = [
+        "logging_event_handler.cc",
+    ],
+    hdrs = [
+        "public/pw_unit_test/logging_event_handler.h",
+    ],
+    includes = [
+        "public",
+    ],
+    deps = [
+        ":googletest_style_event_handler",
+        "//pw_log",
+    ],
+)
+
+# Provides logging to either the light framework or an external GoogleTest.
+pw_cc_library(
+    name = "logging",
+    deps = [":logging_event_handler"] + select({
+        ":gtest_setting": [":googletest_handler_adapter"],
+        "//conditions:default": [],
+    }),
+)
+
+pw_cc_binary(
+    name = "logging_main",
+    srcs = [
+        "logging_main.cc",
+    ],
+    deps = [
+        ":logging",
+        "//pw_unit_test",
+    ],
+)
+
+proto_library(
+    name = "unit_test_proto",
+    srcs = ["pw_unit_test_proto/unit_test.proto"],
+    strip_import_prefix = "/pw_unit_test",
+)
+
+py_proto_library(
+    name = "unit_test_py_pb2",
+    deps = [":unit_test_proto"],
+)
+
+pw_proto_library(
+    name = "unit_test_cc",
+    deps = [":unit_test_proto"],
+)
+
+pw_cc_library(
+    name = "rpc_service",
+    srcs = ["unit_test_service.cc"] + select({
+        ":light_setting": ["rpc_light_event_handler.cc"],
+        "//conditions:default": [":rpc_gtest_event_handler.cc"],
+    }),
+    hdrs = [
+        "public/pw_unit_test/config.h",
+        "public/pw_unit_test/unit_test_service.h",
+    ] + select({
+        ":light_setting": [
+            "rpc_light_public/pw_unit_test/internal/rpc_event_handler.h",
+        ],
+        "//conditions:default": [
+            "rpc_gtest_public/pw_unit_test/internal/rpc_event_handler.h",
+        ],
+    }),
+    includes = ["public"] + select({
+        ":light_setting": ["rpc_light_public"],
+        "//conditions:default": ["rpc_gtest_public"],
+    }),
+    deps = [
+        ":event_handler",
+        ":pw_unit_test",
+        ":unit_test_cc.pwpb",
+        ":unit_test_cc.raw_rpc",
+        "//pw_log",
+    ],
+)
+
+pw_cc_library(
+    name = "rpc_main",
+    srcs = [
+        "rpc_main.cc",
+    ],
+    deps = [
+        ":pw_unit_test",
+        ":rpc_service",
+        "//pw_hdlc:pw_rpc",
+        "//pw_log",
+        "//pw_rpc",
+        "//pw_rpc/system_server",
+    ],
+)
+
+pw_cc_library(
+    name = "static_library_support",
+    srcs = ["static_library_support.cc"],
+    hdrs = ["public/pw_unit_test/static_library_support.h"],
+    includes = ["public"],
+    deps = [":light"],  # This library only works with the light backend
+)
+
+pw_cc_library(
+    name = "tests_in_archive",
+    srcs = [
+        "static_library_archived_tests.cc",
+        "static_library_missing_archived_tests.cc",
+    ],
+    linkstatic = True,
+    visibility = ["//visibility:private"],
+    deps = [":pw_unit_test"],
+)
+
+pw_cc_test(
+    name = "static_library_support_test",
+    srcs = ["static_library_support_test.cc"],
+    target_compatible_with = select({
+        "//pw_unit_test:light_setting": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+    deps = [
+        ":static_library_support",
+        ":tests_in_archive",
+        "//pw_assert",
+    ],
+)
+
+pw_cc_test(
+    name = "framework_test",
+    srcs = ["framework_test.cc"],
+    target_compatible_with = select({
+        "//pw_unit_test:light_setting": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+    deps = [
+        ":pw_unit_test",
+        "//pw_assert",
+    ],
+)
+
+# TODO(hepler): Build this as a cc_binary and use it in integration tests.
+filegroup(
+    name = "test_rpc_server",
+    srcs = ["test_rpc_server.cc"],
+    # deps = [
+    #     ":pw_unit_test",
+    #     ":rpc_service",
+    #     "//pw_log",
+    #     "//pw_rpc/system_server",
+    # ],
+)

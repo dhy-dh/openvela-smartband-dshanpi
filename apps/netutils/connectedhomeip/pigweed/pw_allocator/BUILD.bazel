@@ -1,0 +1,334 @@
+# Copyright 2020 The Pigweed Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy of
+# the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations under
+# the License.
+
+load(
+    "//pw_build:pigweed.bzl",
+    "pw_cc_library",
+    "pw_cc_test",
+)
+
+package(default_visibility = ["//visibility:public"])
+
+licenses(["notice"])
+
+# TODO(b/310035978): Support heap poisoning.
+
+pw_cc_library(
+    name = "allocator",
+    srcs = [
+        "allocator.cc",
+    ],
+    hdrs = [
+        "public/pw_allocator/allocator.h",
+    ],
+    includes = ["public"],
+    deps = [
+        "//pw_assert",
+        "//pw_bytes",
+        "//pw_status",
+    ],
+)
+
+pw_cc_library(
+    name = "allocator_metric_proxy",
+    srcs = [
+        "allocator_metric_proxy.cc",
+    ],
+    hdrs = [
+        "public/pw_allocator/allocator_metric_proxy.h",
+    ],
+    includes = ["public"],
+    deps = [
+        ":allocator",
+        "//pw_assert",
+        "//pw_metric:metric",
+        "//pw_status",
+    ],
+)
+
+pw_cc_library(
+    name = "block",
+    srcs = ["block.cc"],
+    hdrs = [
+        "public/pw_allocator/block.h",
+    ],
+    includes = ["public"],
+    deps = [
+        "//pw_assert",
+        "//pw_bytes",
+        "//pw_result",
+        "//pw_span",
+        "//pw_status",
+        "//third_party/fuchsia:stdcompat",
+    ],
+)
+
+pw_cc_library(
+    name = "fallback_allocator",
+    srcs = [
+        "fallback_allocator.cc",
+    ],
+    hdrs = [
+        "public/pw_allocator/fallback_allocator.h",
+    ],
+    includes = ["public"],
+    deps = [
+        ":allocator",
+        "//pw_assert",
+        "//pw_status",
+    ],
+)
+
+pw_cc_library(
+    name = "freelist",
+    srcs = [
+        "freelist.cc",
+    ],
+    hdrs = [
+        "public/pw_allocator/freelist.h",
+    ],
+    includes = ["public"],
+    deps = [
+        "//pw_containers",
+        "//pw_span",
+        "//pw_status",
+    ],
+)
+
+pw_cc_library(
+    name = "freelist_heap",
+    srcs = [
+        "freelist_heap.cc",
+    ],
+    hdrs = [
+        "public/pw_allocator/freelist_heap.h",
+    ],
+    includes = ["public"],
+    deps = [
+        ":block",
+        ":freelist",
+        "//pw_log",
+    ],
+)
+
+pw_cc_library(
+    name = "libc_allocator",
+    srcs = [
+        "libc_allocator.cc",
+    ],
+    hdrs = [
+        "public/pw_allocator/libc_allocator.h",
+    ],
+    includes = ["public"],
+    deps = [
+        ":allocator",
+        "//pw_assert",
+        "//pw_bytes",
+        "//pw_status",
+    ],
+)
+
+pw_cc_library(
+    name = "null_allocator",
+    hdrs = [
+        "public/pw_allocator/null_allocator.h",
+    ],
+    includes = ["public"],
+    deps = [
+        ":allocator",
+    ],
+)
+
+pw_cc_library(
+    name = "simple_allocator",
+    hdrs = [
+        "public/pw_allocator/simple_allocator.h",
+    ],
+    includes = ["public"],
+    deps = [
+        ":allocator",
+        ":block",
+        "//pw_bytes",
+    ],
+)
+
+pw_cc_library(
+    name = "split_free_list_allocator",
+    srcs = [
+        "split_free_list_allocator.cc",
+    ],
+    hdrs = [
+        "public/pw_allocator/split_free_list_allocator.h",
+    ],
+    includes = ["public"],
+    deps = [
+        ":allocator",
+        ":block",
+        "//pw_assert",
+        "//pw_bytes",
+        "//pw_result",
+        "//pw_status",
+    ],
+)
+
+pw_cc_library(
+    name = "allocator_testing",
+    srcs = [
+        "allocator_testing.cc",
+    ],
+    hdrs = [
+        "public/pw_allocator/allocator_testing.h",
+    ],
+    includes = ["public"],
+    deps = [
+        ":allocator",
+        ":block",
+        ":simple_allocator",
+        "//pw_assert",
+        "//pw_bytes",
+        "//pw_unit_test",
+    ],
+)
+
+pw_cc_test(
+    name = "allocator_test",
+    srcs = [
+        "allocator_test.cc",
+    ],
+    deps = [
+        ":allocator",
+        ":allocator_testing",
+        "//pw_bytes",
+        "//pw_unit_test",
+    ],
+)
+
+pw_cc_test(
+    name = "allocator_metric_proxy_test",
+    srcs = [
+        "allocator_metric_proxy_test.cc",
+    ],
+    deps = [
+        ":allocator_metric_proxy",
+        ":allocator_testing",
+        "//pw_unit_test",
+    ],
+)
+
+pw_cc_test(
+    name = "block_test",
+    srcs = [
+        "block_test.cc",
+    ],
+    deps = [
+        ":block",
+        "//pw_span",
+        "//pw_unit_test",
+    ],
+)
+
+pw_cc_test(
+    name = "fallback_allocator_test",
+    srcs = [
+        "fallback_allocator_test.cc",
+    ],
+    deps = [
+        ":allocator_testing",
+        ":fallback_allocator",
+        "//pw_status",
+        "//pw_unit_test",
+    ],
+)
+
+pw_cc_test(
+    name = "freelist_test",
+    srcs = [
+        "freelist_test.cc",
+    ],
+    deps = [
+        ":freelist",
+        "//pw_span",
+        "//pw_status",
+        "//pw_unit_test",
+    ],
+)
+
+pw_cc_test(
+    name = "freelist_heap_test",
+    srcs = [
+        "freelist_heap_test.cc",
+    ],
+    deps = [
+        ":freelist_heap",
+    ],
+)
+
+pw_cc_test(
+    name = "libc_allocator_test",
+    srcs = [
+        "libc_allocator_test.cc",
+    ],
+    deps = [
+        ":libc_allocator",
+        "//pw_unit_test",
+    ],
+)
+
+pw_cc_test(
+    name = "null_allocator_test",
+    srcs = [
+        "null_allocator_test.cc",
+    ],
+    deps = [
+        ":null_allocator",
+        "//pw_unit_test",
+    ],
+)
+
+pw_cc_test(
+    name = "simple_allocator_test",
+    srcs = [
+        "simple_allocator_test.cc",
+    ],
+    deps = [
+        ":allocator_testing",
+        ":simple_allocator",
+    ],
+)
+
+pw_cc_test(
+    name = "split_free_list_allocator_test",
+    srcs = [
+        "split_free_list_allocator_test.cc",
+    ],
+    deps = [
+        ":allocator_testing",
+        ":split_free_list_allocator",
+        "//pw_bytes",
+        "//pw_containers:vector",
+        "//pw_unit_test",
+    ],
+)
+
+pw_cc_test(
+    name = "unique_ptr_test",
+    srcs = [
+        "unique_ptr_test.cc",
+    ],
+    deps = [
+        ":allocator",
+        ":allocator_testing",
+        "//pw_unit_test",
+    ],
+)
