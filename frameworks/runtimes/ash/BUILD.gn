@@ -1,0 +1,104 @@
+import("ash.gni")
+
+config("config") {
+  include_dirs = [
+    "include",
+  ]
+}
+
+static_library("ash") {
+  sources = [
+    "src/bundle/bundle.cpp",
+    "src/crash/crash.cpp",
+    "src/device_info/device_info.cpp",
+    "src/fds/scoped_fd.cpp",
+    "src/file/file.cpp",
+    "src/file/file_path.cpp",
+    "src/logging/logging.cpp",
+    "src/memory/global_variable.cpp",
+    "src/memory/lifecycle_watcher.cpp",
+    "src/memory/thread_local.cpp",
+    "src/memory/variable_segment.cpp",
+    "src/message_loop/message_loop.cpp",
+    "src/message_loop/message_pump_android.cpp",
+    "src/message_loop/message_pump.cpp",
+    "src/message_loop/message_pump_impl.cpp",
+    "src/message_loop/message_pump_uv.cpp",
+    "src/message_loop/message_queue.cpp",
+    "src/message_loop/message_queue_runner.cpp",
+    "src/network/ip_address.cpp",
+    "src/network/ip_endpoint.cpp",
+    "src/network/port.cpp",
+    "src/network/stream_socket.cpp",
+    "src/network/tcp_connector.cpp",
+    "src/network/uds_connector.cpp",
+    "src/stream/input_stream.cpp",
+    "src/stream/file_input_stream.cpp",
+    "src/stream/raw_input_stream.cpp",
+    "src/strings/number_string_conversions.cpp",
+    "src/strings/string_converter.cpp",
+    "src/threading/thread.cpp",
+    "src/time/duration.cpp",
+    "src/time/time.cpp",
+    "src/timer/timer.cpp",
+    "src/trace_event/trace_event.cpp",
+    "src/zip/in_zip.cpp",
+    "src/zip/out_zip.cpp",
+    "include/ash/bundle/bundle.h",
+    "include/ash/crash/crash.h",
+    "include/ash/device_info/device_info.h",
+    "include/ash/fds/scoped_fd.h",
+    "include/ash/file/file.h",
+    "include/ash/file/file_path.h",
+    "include/ash/functional/closure.h",
+    "include/ash/functional/fn_once.h",
+    "include/ash/geometry/size.h",
+    "include/ash/logging/logging.h",
+    "include/ash/macros/compiler_macros.h",
+    "include/ash/memory/global_lazy_instance.h",
+    "include/ash/memory/global_variable.h",
+    "include/ash/memory/lazy_instance.h",
+    "include/ash/memory/lifecycle_watcher.h",
+    "include/ash/memory/thread_local.h",
+    "include/ash/memory/variable_segment.h",
+    "include/ash/memory/weak_ptr.h",
+    "include/ash/memory/raw_ptr.h",
+    "include/ash/message_loop/message_loop.h",
+    "include/ash/message_loop/message_loop_listener.h",
+    "include/ash/message_loop/message_pump_android.h",
+    "include/ash/message_loop/message_pump.h",
+    "include/ash/message_loop/message_pump_impl.h",
+    "include/ash/message_loop/message_pump_uv.h",
+    "include/ash/message_loop/message_queue.h",
+    "include/ash/message_loop/message_queue_runner.h",
+    "include/ash/stream/input_stream.h",
+    "include/ash/stream/file_input_stream.h",
+    "include/ash/stream/raw_input_stream.h",
+    "include/ash/stream/seekable_raw_input_stream.h",
+    "include/ash/strings/number_string_conversions.h",
+    "include/ash/strings/string_converter.h",
+    "include/ash/task_runner/task_runner.h",
+    "include/ash/threading/thread.h",
+    "include/ash/time/duration.h",
+    "include/ash/time/time.h",
+    "include/ash/timer/timer.h",
+    "include/ash/trace_event/trace_event.h",
+    "include/ash/utils/scoped_setter.h",
+    "include/ash/utils/value_or_function.h",
+    "include/ash/zip/in_zip.h",
+    "include/ash/zip/out_zip.h",
+  ]
+
+  public_configs = [
+    ":config",
+  ]
+
+  public_deps = []
+  defines = []
+  if (ash_zlib_target != "") {
+    public_deps += [
+      ash_zlib_target,
+    ]
+    defines += [ "ASH_HAVE_ZLIB" ]
+  }
+}

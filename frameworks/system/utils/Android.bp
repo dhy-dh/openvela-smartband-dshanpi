@@ -1,0 +1,119 @@
+cc_defaults {
+  name: "framework_utils_defaults",
+
+  static_libs: [
+    "libframework_utils",
+  ],
+
+  header_libs: [
+    "kernel_modules_headers",
+  ],
+}
+
+soong_config_module_type {
+    name: "framework_utils_cc_defaults",
+    module_type: "cc_defaults",
+    config_namespace: "vela",
+
+    variables: [
+        "kvdb_server",
+    ],
+    properties: [
+        "cflags",
+    ],
+}
+
+soong_config_string_variable {
+    name: "kvdb_server",
+    values: [
+        "cp",
+        "sensor",
+        "audio",
+    ],
+}
+
+framework_utils_cc_defaults {
+    name: "frameworks_utils_cflags_defaults",
+
+    cflags: [
+        "-fvisibility=hidden",
+        "-DCONFIG_NET_RPMSG",
+    ],
+
+    soong_config_variables: {
+        kvdb_server: {
+            cp: {
+                cflags: ["-DCONFIG_KVDB_SERVER_CPUNAME=\"cp\""],
+            },
+            sensor: {
+                cflags: ["-DCONFIG_KVDB_SERVER_CPUNAME=\"sensor\""],
+            },
+            audio: {
+                cflags: ["-DCONFIG_KVDB_SERVER_CPUNAME=\"audio\""],
+            },
+            conditions_default: {
+                cflags: ["-DCONFIG_KVDB_SERVER_CPUNAME=\"ap\""],
+            },
+        },
+    },
+}
+
+cc_library_static {
+    name: "libframework_utils",
+    export_include_dirs: ["include"],
+
+    defaults: ["frameworks_utils_cflags_defaults"],
+
+    srcs: [
+        "kvdb/common.c",
+        "kvdb/system_properties.c",
+        "kvdb/client.c",
+    ],
+
+    header_libs: [
+        "kernel_modules_headers",
+    ],
+}
+
+cc_library_headers {
+    name: "libprop_headers",
+    export_include_dirs: ["include/cutils"],
+    vendor_available: true,
+}
+
+cc_library_headers {
+    name: "libframework_utils_headers",
+    export_include_dirs: ["include"],
+    vendor_available: true,
+}
+
+cc_binary {
+    name: "kvset",
+    srcs: ["kvdb/setprop.c"],
+    defaults: ["framework_utils_defaults"],
+}
+
+cc_binary {
+    name: "kvget",
+    srcs: ["kvdb/getprop.c"],
+    defaults: ["framework_utils_defaults"],
+}
+
+cc_library_static {
+    name: "libkvdb_vendor",
+    export_include_dirs: ["include"],
+
+    defaults: ["frameworks_utils_cflags_defaults"],
+
+    srcs: [
+        "kvdb/common.c",
+        "kvdb/system_properties.c",
+        "kvdb/client.c",
+    ],
+
+    header_libs: [
+        "kernel_modules_headers",
+    ],
+
+    proprietary: true
+}

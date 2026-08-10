@@ -1,0 +1,65 @@
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
+bootstrap_go_package {
+    name: "soong-cpcfsqnative",
+    pkgPath: "android/soong/cpcfsqnative",
+    deps: [
+        "soong-android",
+        "soong-cc",
+    ],
+    srcs: [
+          "cpcfsqnative.go",
+    ],
+    pluginFor: ["soong_build"],
+}
+
+cpcfsqnative_defaults {
+    name: "cpcfsqnative_defaults",
+    shared_libs: [
+        "libcutils",
+        "liblog",
+        "libutils",
+        "libbinder",
+    ],
+
+    static_libs: [
+        "libcpcbinder",
+    ],
+}
+
+cc_binary {
+    name: "TestSocketQueueServer",
+
+    aidl: {
+        include_dirs: [
+            "vendor/vela/frameworks/system/binder/libs/binder/include",
+        ],
+    },
+
+    srcs: [
+        "ITestAidlSocketQ.aidl",
+        "TestSocketQueueServer.cpp"
+    ],
+    header_libs: ["libfsq_headers"],
+    defaults: ["cpcfsqnative_defaults"],
+}
+
+cc_binary {
+    name: "TestSocketQueueClient",
+
+    aidl: {
+        include_dirs: [
+            "vendor/vela/frameworks/system/binder/libs/binder/include",
+        ],
+    },
+
+    srcs: [
+        "ITestAidlSocketQ.aidl",
+        "TestSocketQueueClient.cpp"
+    ],
+    header_libs: ["libfsq_headers"],
+    defaults: ["cpcfsqnative_defaults"],
+}
+

@@ -1,0 +1,10 @@
+module promise_test@1.0
+
+promise<int> foo(int a, string b)
+use use_foo(int a) = foo(a, "hello")
+promise<int> foo1(int a)
+promise<int> foo2()
+promise<int[]> bar()
+promise<int[]> bar1()
+promise<int[]> bar2()
+void print(...)

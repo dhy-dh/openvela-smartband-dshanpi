@@ -1,0 +1,117 @@
+<template>
+    <!-- <div style="display: flex; justify-content: center; margin-right: 10px;">
+      <div onclick="installApp">
+        <text>安装应用</text>
+      </div>
+      <div onclick="uninstallApp">
+        <text>卸载应用</text>
+      </div>
+    </div> -->
+    <div id="core-editor" class="ai-c jc-c bgc-c0" onswipe="closeDeleteIcon">
+      <div class="w-400 flexd-r flexw-w jc-fs ai-fe mq-0--1 mq-1--1 mq-2--1">
+        <div for="{{listdata}}" class="w-100 h-100 ai-c jc-c logo" @click="clickItem($item)" @longpress="deleteConfirm($item.url)">
+          <image alt="" src="{{$item.icons}}" class="bdr-0 w-80 h-80 of-c icon"  ></image>
+          <image src="./../../common/icons/delete.png" class="delete" if="{{isDelete}}"></image>
+        </div>
+      </div>
+    </div>
+</template>
+
+
+<script>
+import Page from './home.js';
+export default Page;
+</script>
+
+<style>
+.ai-c {
+  align-items: center;
+}
+
+.jc-c {
+  justify-content: center;
+}
+
+.bgc-c0 {
+  background-color: #000000;
+}
+
+.w-400 {
+  width: 400px;
+}
+
+.flexd-r {
+  flex-direction: row;
+}
+
+.flexw-w {
+  flex-wrap: wrap;
+}
+
+.jc-fs {
+  justify-content: flex-start;
+}
+
+.ai-fe {
+  align-items: flex-end;
+}
+
+.w-100 {
+  width: 100px;
+}
+
+.h-100 {
+  height: 100px;
+}
+
+.bdr-0 {
+  border-radius: 0px;
+}
+icon
+.w-80 {
+  width: 80px;
+}
+
+.h-80 {
+  height: 80px;
+}
+
+#core-editor{
+  padding-top: 220px;
+}
+
+@media (min-width: 160) and (max-width: 200) {
+  .mq-0--1 {
+    width: 300px
+  }
+  #core-editor{
+  padding-top: 120px;
+}
+}
+
+@media (min-width: 80) and (max-width: 160) {
+  .mq-2--1 {
+    width: 192px;
+    justify-content: center;
+  }
+  #core-editor{
+  padding-top: 120px;
+}
+}
+
+/* 自定义CSS样式 */
+
+.logo {
+  position: relative;
+}
+.delete {
+  width: 27px;
+  position: absolute;
+  left: 60%;
+  bottom: 60%;
+}
+
+.icon {
+  border-radius: 50%;
+}
+</style>

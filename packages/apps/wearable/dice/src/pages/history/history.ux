@@ -1,0 +1,92 @@
+<template>
+  <div class="page">
+    <text if="{{ history && history.length === 0 }}" class="label">暂无记录</text>
+    <div if="{{ history && history.length !== 0 }}" class="history">
+      <text class="label">历史记录</text>
+      <scroll scroll-y="{{true}}" class="scroll-area">
+        <div for="{{history}}" class="item">
+          <text class="date">
+            <span>{{ $item.time.slice(0,11) }}</span>
+            <span>{{ $item.time.slice(11,19) }}</span>
+          </text>
+          <text class="point">{{ $item.result }}点</text>
+        </div>
+      </scroll>
+    </div>
+  </div>
+</template>
+
+<script>
+  export default {
+    private: {
+      list: '',
+      history: []
+    },
+    onInit() {
+      this.history = this.list ? JSON.parse(this.list) : []
+    }
+  }
+</script>
+
+<style>
+.page {
+  background-color: #fff; 
+}
+.history {
+  width: 100%;
+  flex-direction: column;
+  padding: 20px 15px;
+}
+.label {
+  width: 100%;
+  text-align: center;
+  margin-bottom: 10px;
+}
+.scroll-area {
+  flex: 1;
+  flex-direction: column;
+}
+
+text {
+  color: #000;
+  font-size: 26px;
+}
+.item {
+  height: 50px;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+}
+.date {
+  flex: 1;
+}
+@media (shape: circle){ 
+  .page {
+    padding-bottom: 35px;
+  }
+  .history {
+    align-items: center;
+  }
+  .scroll-area {
+    width: 80%;
+  }
+}
+@media (width: 212) {
+  .history {
+    padding: 20px 15px 30px;
+  }
+  .item {
+    height: 70px;
+    align-items: flex-start;
+  }
+  .date {
+    flex-direction: column;
+    line-height: 26px;
+    font-size: 25px;
+  }
+  .point {
+    line-height: 26px;
+    font-size: 25px;
+  }
+}
+</style>

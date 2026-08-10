@@ -1,0 +1,25 @@
+<script>
+import {dataList} from "@common/js/constants"
+
+export default {
+  bigThumbnailInfo: dataList, // 大图url链接
+  thumbnailInfo: dataList, // 缩略图url
+  isLastPage: true, // 是否是最后一页
+  setDeviceAlbumStatus:true,
+  time:0,
+  isScreensaver: false, // 是否设为屏保
+  async onCreate() {
+    console.log("### 🚀Album ~ app.ux ~ onCreate ###")
+  },
+  onDestroy() {
+    console.log("app destroyed")
+  },
+  onDestroy() {
+    if (timer) clearInterval(timer)
+  }
+}
+</script>
+
+<style>
+@import "./common/style/unocss-vela.css";
+</style>

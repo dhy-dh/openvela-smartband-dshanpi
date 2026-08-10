@@ -1,0 +1,37 @@
+// Copyright (C) 2024 Xiaomi Corporation
+
+bootstrap_go_package {
+    name: "soong-cpcservice",
+    pkgPath: "android/soong/cpcservice",
+    deps: [
+        "soong-android",
+        "soong-cc",
+    ],
+    srcs: [
+          "cpcservice.go",
+    ],
+    pluginFor: ["soong_build"],
+}
+
+cpcservice_defaults {
+    name: "cpcservice_defaults",
+}
+
+cc_binary {
+    name: "cpcservice",
+
+    srcs: ["cpcservice.cpp"],
+
+    shared_libs: [
+        "liblog",
+        "libcutils",
+        "libutils",
+        "libbinder",
+    ],
+
+    static_libs: [
+        "libcpcbinder",
+    ],
+
+    defaults: ["cpcservice_defaults"]
+}

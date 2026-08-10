@@ -1,0 +1,34 @@
+{
+  "package": "com.application.watch.24count",
+  "name": "24点",
+  "versionName": "1.0.5",
+  "versionCode": 5,
+  "minPlatformVersion": 1000,
+  "icon": "/common/logo.png",
+  "deviceTypeList": [
+    "watch"
+  ],
+  "features": [
+    {
+      "name": "system.router"
+    }
+  ],
+  "config": {
+    "logLevel": "log",
+    "designWidth": "device-width"
+  },
+  "router": {
+    "entry": "pages/home",
+    "pages": {
+      "pages/index": {
+        "component": "index"
+      },
+      "pages/game": {
+        "component": "index"
+      },
+      "pages/home": {
+        "component": "index"
+      }
+    }
+  }
+}

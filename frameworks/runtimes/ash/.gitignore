@@ -1,0 +1,14 @@
+build/
+.cache/
+.vscode/
+.out
+
+# file types
+*.o
+*.tmp
+*.bdat
+
+# files
+.built
+.depend
+Make.dep

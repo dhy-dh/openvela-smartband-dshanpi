@@ -1,0 +1,157 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config OTA_UI
+	bool "Enable OTA UI module"
+	default n
+	depends on GRAPHICS_LVGL
+	---help---
+		This option will display upgrade progress on panel.
+
+if OTA_UI
+
+config OTA_UI_PROG_SYNC_TIME
+	int "OTA UI progress sync time, unit:milliseconds."
+	default 40000
+	---help---
+		Period for reading progress.
+
+config OTA_UI_FINISH_EXEC_CMD
+	string "OTA UI end exec command"
+	default "reboot 0"
+
+config OTA_UI_CMD_WAIT_TIME
+	int "exec command wait time, unt:seconds."
+	default 3
+	---help---
+		command wait time.
+
+config OTA_UI_STACKSIZE
+	int "OTA UI stack size"
+	default 4096
+	---help---
+		The stack size to use the otaUI task.  Default: 4096
+
+config OTA_UI_PRIORITY
+	int "OTA UI task priority"
+	default 100
+	---help---
+		The priority to use the otaUI task.  Default: 100
+
+endif
+
+config UTILS_AVB_VERIFY
+	tristate "AVB verification tools"
+	default n
+	depends on LIB_AVB
+	---help---
+		Enable AVB verification tools
+
+if UTILS_AVB_VERIFY
+
+config UTILS_AVB_VERIFY_PROGNAME
+	string "Program name of AVB verification tools"
+	default "avb_verify"
+	---help---
+		This is the name of the program that will be used when the NSH ELF
+		program is installed.
+
+config UTILS_AVB_VERIFY_PRIORITY
+	int "Priority of AVB verification tools"
+	default 100
+
+config UTILS_AVB_VERIFY_STACKSIZE
+	int "Stack size of AVB verification tools"
+	default 6144
+
+endif
+
+config UTILS_ZIP_VERIFY
+	tristate "OTA image verify"
+	default n
+	depends on LIB_AVB && LIB_AVB_SHA256
+	depends on LIB_ZLIB
+	---help---
+		This option will enable a upgrade package verify.
+
+if UTILS_ZIP_VERIFY
+
+config UTILS_ZIP_VERIFY_PROGNAME
+	string "Program name"
+	default "zip_verify"
+	---help---
+		This is the name of the program that will be used when the NSH ELF
+		program is installed.
+
+config UTILS_ZIP_VERIFY_STACKSIZE
+	int "Upgrade package verify stack size"
+	default 4096
+	---help---
+		The stack size to use the upgrade package verify task.  Default: 4096
+
+config UTILS_ZIP_VERIFY_PRIORITY
+	int "upgrade package verify priority"
+	default 100
+	---help---
+		The priority to use the upgrade package verify task.  Default: 100
+
+config UTILS_ZIP_VERIFY_BUFSIZE
+	int "upgrade package read buffer size"
+	default 32768
+	---help---
+		The read buffer size to use the upgrade package verify task.  Default: 32768
+
+endif
+
+config UTILS_BOOTCTL
+	tristate "Boot control"
+	default n
+	---help---
+		This option will enable boot control.
+
+if UTILS_BOOTCTL
+
+config UTILS_BOOTCTL_PROGNAME
+	string "Program name"
+	default "bootctl"
+	---help---
+		This is the name of the program that will be used when the NSH ELF
+		program is installed.
+
+config UTILS_BOOTCTL_STACKSIZE
+	int "bootctl verify stack size"
+	default DEFAULT_TASK_STACKSIZE
+	---help---
+		The stack size to use the bootctl task.
+
+config UTILS_BOOTCTL_PRIORITY
+	int "bootctl verify priority"
+	default 100
+	---help---
+		The priority to use the upgrade package verify task.  Default: 100
+
+config UTILS_BOOTCTL_ENTRY
+	bool "bootctl is entry"
+	default n
+	---help---
+		bootctl is entry program, bootloader image need it.
+
+config UTILS_BOOTCTL_SLOT_A
+	string "bootctl slot a path"
+	---help---
+		bootctl slot a path.
+
+config UTILS_BOOTCTL_SLOT_B
+	string "bootctl slot b path"
+	---help---
+		bootctl slot b path.
+
+config UTILS_BOOTCTL_DEBUG
+	bool "bootctl debug"
+	default n
+	---help---
+		bootctl debug option.
+
+endif

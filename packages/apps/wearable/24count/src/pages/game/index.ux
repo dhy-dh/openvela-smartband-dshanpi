@@ -1,0 +1,82 @@
+<template>
+  <div class="container">
+    <div if="{{!passCurret}}" class="game-content">
+      <text class="level-text">{{ countLevel }}/100</text>
+      <div class="main-content">
+        <div class="wrap-div">
+          <div
+          show="{{!hideNumber.includes(0)}}"
+            class="number-box"
+            @click="operatenumber(0)">
+            <text class="number" style="font-size: {{smallSize(currentNumber[0])}};">{{ currentNumber[0] }}</text>
+            <text show="{{currentClick===0}}" class="clicksign"></text>
+          </div>
+          <div class="operate" @click="actionType('+')">
+            <text class="opera-text">+</text>
+            <text show="{{currentClick==4}}" class="actionClickSign"></text>
+          </div>
+          <div
+          show="{{!hideNumber.includes(1)}}"
+            class="number-box "
+            @click="operatenumber(1)">
+            <text class="number" style="font-size: {{smallSize(currentNumber[1])}};">{{ currentNumber[1] }}</text>
+            <text show="{{currentClick==1}}" class="clicksign"></text>
+          </div>
+        </div>
+        <div class="wrap-div middle-box">
+          <div class="operate" @click="actionType('-')">
+            <text class="opera-text">-</text>
+            <text show="{{currentClick==5}}" class="actionClickSign"></text>
+          </div>
+          <div class="center-number"><text class="center-number-text">24</text></div>
+          <div class="operate" @click="actionType('*')">
+            <text class="opera-text">×</text>
+            <text show="{{currentClick==6}}" class="actionClickSign"></text>
+          </div>
+        </div>
+        <div class="wrap-div">
+          <div
+          show="{{!hideNumber.includes(2)}}"
+            class="number-box"
+            @click="operatenumber(2)">
+            <text class="number" style="font-size: {{smallSize(currentNumber[2])}};">{{ currentNumber[2] }}</text>
+            <text class="clicksign" show="{{currentClick==2}}"></text>
+          </div>
+          <div class="operate" @click="actionType('/')">
+            <text class="opera-text">÷</text>
+            <text class="actionClickSign" show="{{currentClick==7}}"></text>
+          </div>
+          <div
+          show="{{!hideNumber.includes(3)}}"
+            class="number-box"
+            @click="operatenumber(3)">
+            <text class="number" style="font-size: {{smallSize(currentNumber[3])}};">{{ currentNumber[3] }}</text>
+            <text class="clicksign" show="{{currentClick==3}}"></text>
+          </div>
+        </div>
+      </div>
+      <div class="footer-restart" @click="reStart">
+        <!-- {{ typeLevel == 10 ? "初级" : typeLevel == 20 ? "中级" : "高级" }}&nbsp;> -->
+        <image class="footer-rotate"  id="restarticon" src="/assets/rotate.png" />
+      </div>
+    </div>
+    <div if="{{passCurret}}" class="pass-container">
+      <text class="pass-text">恭喜{{countLevel==100?'通关':'过关'}}</text>
+      <div class="level-box vertical-center" show="{{!(countLevel==100)}}">
+        <text class="level-text-btn" @click="nextLevel">下一关</text>
+      </div>
+      <div class="level-box vertical-center">
+        <text class="level-text-btn" @click="exit">退出游戏</text>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import page from "./index"
+export default page
+</script>
+
+<style lang="less">
+@import "./index.less";
+</style>

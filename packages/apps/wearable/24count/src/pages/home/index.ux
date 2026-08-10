@@ -1,0 +1,67 @@
+<template>
+  <!-- <div class="container-wrapper"> -->
+    <div class="container">
+      <div class="header vertical-center">
+        <text class="title-text">数字二十四</text>
+      </div>
+      <div class="footer vertical-center" @click="goStart">
+        <text class="footer-text">开始游戏</text>
+      </div>
+    </div>
+  <!-- </div> -->
+</template>
+
+<script>
+import router from "@system.router"
+export default {
+  goStart() {
+    router.replace({
+      uri: "/pages/index"
+    })
+  }
+}
+</script>
+
+<style lang="less">
+.container-wrapper{
+  background-color: #000;
+  justify-content: center;
+  align-items: center;
+}
+.container {
+  background-image: url("/assets/bgc.png");
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-around;
+  background-size: cover;
+}
+
+.header {
+  width: 335px;
+  height: 209px;
+  background-image: url("/assets/start-banner.png");
+}
+
+.footer {
+  width: 281px;
+  height: 89px;
+  background-image: url("/assets/start-game.png");
+}
+
+.title-text {
+  font-size: 50px;
+  color: white;
+  font-weight: 700;
+}
+
+.footer-text {
+  font-size: 40px;
+  color: #49c889;
+  font-weight: 700;
+}
+
+.vertical-center {
+  justify-content: center;
+  align-items: center;
+}
+</style>

@@ -1,0 +1,40 @@
+{
+  "package": "com.application.vela.woodenfish",
+  "name": "敲木鱼",
+  "versionName": "1.0.4",
+  "versionCode": 5,
+  "minPlatformVersion": 1000,
+  "icon": "/common/logo.png",
+  "deviceTypeList": [
+    "watch"
+  ],
+  "features": [
+    {
+      "name": "system.router"
+    },
+    {
+      "name": "system.storage"
+    },
+    {
+      "name": "system.device"
+    },
+    { 
+      "name": "system.vibrator" 
+    }
+  ],
+  "config": {
+    "logLevel": "log",
+    "designWidth": "device-width"
+  },
+  "display": {
+    "backgroundColor": "#000"
+  },
+  "router": {
+    "entry": "pages/home",
+    "pages": {
+      "pages/home": {
+        "component": "index"
+      }
+    }
+  }
+}

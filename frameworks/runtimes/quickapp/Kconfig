@@ -1,0 +1,506 @@
+#
+# Copyright (C) 2020 Xiaomi Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+menu "quick application"
+
+config QUICKAPP
+	bool "Enable quick application"
+	depends on LIBUV && PROTOBUF_C
+	depends on (INTERPRETERS_QUICKJS || INTERPRETERS_WAMR)
+	depends on GRAPHICS_LVGL && UIKIT && LIBUV_EXTENSION && UIKIT_FONT_MANAGER && LIB_YOGA && LV_USE_LIBPNG && LV_USE_NUTTX_LIBUV
+	depends on UTILS_CURL # for image cache manager
+	depends on LIB_PNG
+	depends on FEATURE_FRAMEWORK
+	depends on LIBASH
+	select LIBC_PRINT_EXTENSION
+	default n
+	---help---
+		This option enables quick app support
+
+
+if QUICKAPP
+
+choice
+	prompt "quickapp runtime engine"
+	default USE_QUICKJS
+	---help---
+		quickjs engine need INTERPRETERS_QUICKJS.
+		wasm engine need INTERPRETERS_WAMR.
+
+config USE_QUICKJS
+	bool "quickjs engine"
+	depends on INTERPRETERS_QUICKJS
+	---help---
+		The quickjs engine
+
+endchoice
+
+config QUICKAPP_VAPP
+	bool "vapp"
+	default n
+	depends on GRAPHICS_LVGL && LIB_FREETYPE
+	---help---
+	the standard program to run rpk directly, used for test and some production such as 86v1
+	it's the simplist mode for use quickapp.
+
+config QUICKAPP_VAPP_XMS
+	bool "vappxms"
+	default n
+	depends on GRAPHICS_LVGL && LIB_FREETYPE && SYSTEM_SERVER
+	---help---
+	integrate with xms service, only supported when xms is enabled
+
+config QUICKAPP_PROPRIETARY
+	bool "proprietary library mode"
+	default y
+	depends on GRAPHICS_LVGL && LIB_FREETYPE
+	---help---
+	proprietary library mode, requires proprietary/ directory
+
+menu "quickapp production configurations"
+config QUICKAPP_PRODUCT_PANEL
+	bool "panel features"
+	default n
+	depends on (USE_QUICKJS)
+	---help---
+	enable panel features for 86v1... etc
+
+config QUICKAPP_PRODUCT_SMARTSPEAKER
+	bool "smartspeaker features"
+	default n
+	depends on (USE_QUICKJS)
+	---help---
+	enable smartspeaker features for x4b... etc
+
+
+endmenu # "quickapp production configurations"
+
+menu "quickapps settings"
+
+config QUICKAPP_RPK_DIR
+	string "/resource/package"
+	default "/resource/package"
+	---help---
+		RPKfiles path required by the quickapp
+
+config QUICKAPP_DISK_RESERVED
+	int "Reserved disk space when quickapp writes"
+	default -1
+	---help---
+		-1 means no limits, any positive number means reserved disk space in Byte
+
+config QUICKAPP_FOLME_ANIMENGINE_ADAPTER
+	bool "Enable animation engine adapter"
+	depends on ANIMATION_ENGINE && FEATURE_FRAMEWORK
+	default n
+
+config QUICKAPP_SWIPER_SCROLL_ANIM_TIME_MIN
+	int "minimum scroll animation time (ms)"
+	default 200
+
+config QUICKAPP_SWIPER_SCROLL_ANIM_TIME_MAX
+	int "maximum scroll animation time (ms)"
+	default 400
+
+config QUICKAPP_SWIPER_TURN_DISTANCE
+	int "swiper turn distance"
+	default 5
+
+config QUICKAPP_BLUETOOTH_ENHANCE
+	bool "Enable Bluetooth enhanced mode"
+	default n
+
+if QUICKAPP_BLUETOOTH_ENHANCE
+
+config QUICKAPP_BLUETOOTH_ENHANCE_DELAY
+	int "The duration of Bluetooth Low Energy mode, defaule 2000ms"
+	default 2000
+
+choice
+	prompt "bluetooth enhance mode"
+	default BLUETOOTH_ULTRA_LOW_LATENCY
+	---help---
+		bluetooth sniff latency
+
+config BLUETOOTH_ULTRA_LOW_LATENCY
+	bool "bluetooth sniff latency 11.25ms"
+	---help---
+		bluetooth sniff latency 11.25ms
+
+config BLUETOOTH_LOW_LATENCY
+	bool "bluetooth sniff latency 100ms"
+	---help---
+		bluetooth sniff latency 100ms
+
+endchoice
+
+
+endif #QUICKAPP_BLUETOOTH_ENHANCE
+
+
+config QUICKAPP_LOG_LEVEL
+	int "quick application framework debug log level"
+	default 1
+	---help---
+		0 - DEBUG
+		1 - INFO
+		2 - WARNING
+		3 - ERROR
+		4 - ALERT
+		5 - OFF
+
+config QUICKAPP_PRIORITY
+	int "quickapp task priority"
+	default 100
+	depends on QUICKAPP_VAPP || QUICKAPP_VAPP_XMS || QUICKAPP_PROPRIETARY
+	---help---
+		quickapp task priority
+
+config QUICKAPP_STACKSIZE
+	int "quickapp stack size"
+	default 131072
+	depends on QUICKAPP_VAPP || QUICKAPP_VAPP_XMS || QUICKAPP_PROPRIETARY
+	---help---
+		quickapp stack size
+
+config QUICKAPP_ACTIVITY_ASYNC
+	bool "control whether the operation mode is asynchronous"
+	default n
+	depends on QUICKAPP_VAPP_XMS
+	---help---
+		This macro only needs to be enabled when you want to implement asynchronous operation in XMS.
+
+config HAP_APP_PATH
+	string "Path of quick application data"
+	default "/data"
+	---help---
+		The path where quick application data are stored. eg:
+		Note: There can be no '/' at the end of the string.
+
+config APP_INSTALL_PATH
+	string "Path of quick application hap link"
+	default HAP_APP_PATH
+	---help---
+		The path where quick application are stored. eg:
+		${HAP_APP_PATH}  , hap:///${HAP_APP_PATH}/app/xxxxx
+		Note: There can be no '/' at the end of the string.
+
+config QUICKAPP_DEBUG
+        bool "quickapp debug support"
+        depends on (NETUTILS_MQTTC && INTERPRETERS_QUICKJS_DEBUG && NETUTILS_MQTTC_WITH_MBEDTLS)
+        default n
+        ---help---
+                Enable this if you want quickapp debugger support.
+
+config QUICKAPP_DEBUG_THREADSTACKSIZE
+	int "app debug stack size"
+	depends on QUICKAPP_DEBUG
+	default 131072
+
+config QUICKAPP_DEBUG_THREADPRIORITY
+	int "app thread thread priority"
+	depends on QUICKAPP_DEBUG
+	default 90
+
+config QUICKAPP_THREADSTACKSIZE
+	int "app thread stack size"
+	default 131072
+
+config QUICKAPP_JSSTACKSIZE
+	int "app js stack size"
+	default 524288
+
+config QUICKAPP_JSHEAPSIZE
+	int "app js heap size, default: 4MB"
+	default 4194304
+
+config QUICKAPP_TEST_FRAMEWORK
+	bool "enable quickapp test framework integration"
+	default n
+	---help---
+	when enabled, add emitElement function for test framework.
+
+config QUICKAPP_VAPPTEST
+	bool "quickapp gtest"
+	default n
+
+config DOM_TRACE_ENABLE
+	bool "Enable DOM trace"
+	default n
+
+config VIEW_MODEL_DEBUG
+	bool "Enable view model debug"
+	default n
+
+config JS_USE_SCHED_NOTE
+	bool "Enable Js Sched Note"
+	default n
+
+config QUICKAPP_MEMORY_STATUS
+	bool "Enable quickapp memory status log"
+	default n
+
+config QUICKAPP_QUALITY_PROFILER
+	bool "Enable quickapp framework profiler for quality"
+	default n
+	depends on FRAMEWORK_ENABLE_LOG
+
+config QUICKAPP_PAGE_ANIMATION
+	bool "Enable page animation"
+	default n
+	depends on QUICKAPP_FOLME_ANIMENGINE_ADAPTER
+
+endmenu # "quickapps settings & utils"
+
+menu "gui settings"
+
+config WIDGET_LOG_ENANLE
+	bool "Enable widget log"
+	default y
+
+config WIDGET_LOG_LEVEL
+	int "Widget log level"
+	default 1
+	depends on WIDGET_LOG_ENANLE
+	---help---
+		0 - INFO
+		1 - WARNING
+		2 - ERROR
+		3 - FATAL
+
+config WIDGET_ASSERT_ENABLE
+	bool "Enable widget assert"
+	default n
+
+config WIDGET_TRACE_ENABLE
+	bool "Enable widget trace check"
+	default n
+
+config WIDGET_PROFILER_ENABLE
+	bool "Enable widget Sched Note"
+	default n
+
+config WIDGET_PERF_ENABLE
+	bool "Enable widget performance monitor"
+	default n
+
+config WIDGET_DUMP_TREE_ENABLE
+	bool "Enable widget dump tree"
+	default n
+
+config WIDGET_DUMP_TREE_IN_LAYOUT
+	bool "Enable auto widget dump tree in layout task"
+	default n
+	depends on WIDGET_DUMP_TREE_ENABLE
+
+config WIDGET_SHOW_YOGA_NODE_ENABLE
+	bool "Enable show YOGA node"
+	default n
+
+config WIDGET_DEBUG_DRAW_OUTLINE
+	bool "Enable draw outline for debug"
+	default n
+
+config WIDGET_IMAGE_USE_CACHE_MANAGER
+	bool "Enable WidgetImage cache manager"
+	default y
+	depends on LIB_CURL
+
+config CSS_ATTR_LIST_ENABLE
+	bool "Enable widget get css/attr list function"
+	default n
+
+config FONT_DEFAULT_NORMAL_NAME
+	string "default font file name"
+	default "MiSans-Regular"
+
+config FONT_DEFAULT_BOLD_NAME
+	string "default bold font file name"
+	default "MiSans-Demibold"
+
+config FONT_DEFAULT_SIZE
+	int "default font size"
+	default 30
+
+config PROMPT_TOAST_FONT_SIZE
+	int "font size of toast prompt"
+	default 24
+
+config PROMPT_DIALOG_TITLE_FONT_SIZE
+	int "title font size of dialog prompt"
+	default 36
+
+config PROMPT_DIALOG_MSG_FONT_SIZE
+	int "massage font size of dialog prompt"
+	default 34
+
+config INPUT_KEYBOARD_HEIGHT
+	int "input keyboard height"
+	default 260
+
+endmenu # "Widget configure"
+
+menu "quickapps utils"
+
+config QUICKAPP_AIOTJSC
+	bool "aiotjsc compiler"
+	default y
+	depends on USE_QUICKJS
+	---help---
+	quickapp aiotjsc compiler used to compile js code
+
+if QUICKAPP_AIOTJSC
+config QUICKAPP_SLEEP_PERCENT_FOR_COMPILE_JS_FILE
+	int "js file compile sleep percent"
+	default -1
+	---help---
+	After each compilation of JS files, a sleep function will be called to pause execution for a
+	specified percentage of time. The longer the compilation takes, the longer the sleep duration,
+	preventing the system from becoming too busy due to large-scale JS file compilation during
+	application installation in automated testing scenarios
+
+endif
+
+endmenu #"quickapps utils"
+
+config QUICKAPP_JSMODULE
+	bool "Enable load js module support"
+	default n
+	---help---
+	  support load js_module, which is js encapsulation for feature.
+
+config QUICKAPP_BUNDLE_ZIP
+	bool "Enable bundle zip"
+	default n
+	---help---
+	  support resource bundle zip feature.
+
+config QUICKAPP_PERMISSION_MANAGER
+	bool "Enable permission manager"
+	default n
+	depends on PERMISSION_MANAGER
+	depends on CTA_APPS
+
+if QUICKAPP_PERMISSION_MANAGER
+config QUICKAPP_PERMISSION_NAME_LEN
+	int "length of permission name"
+	default 36
+endif
+
+config QUICKAPP_ENABLE_LMK
+	bool "enable LMK framework"
+	default n
+	depends on FS_PROCFS_INCLUDE_PRESSURE
+
+config QUICKAPP_LMK_LOG_LEVEL
+	int "LMK framework debug log level"
+	default 6
+	depends on QUICKAPP_ENABLE_LMK
+	---help---
+		3 - ERROR
+		4 - WARN
+		5 - NOTICE
+		6 - INFO
+		7 - DEBUG
+
+config QUICKAPP_LMK_THREAD_STACK_SIZE
+	int "LMK thread stack size"
+	default 8192
+	depends on QUICKAPP_ENABLE_LMK
+
+config QUICKAPP_LMK_TEST
+	bool "enable LMK framework test"
+	default n
+	depends on QUICKAPP_ENABLE_LMK && LIB_GOOGLETEST
+
+config FEATURE_SYSTEM_APP
+    bool "system.app"
+    default y
+	depends on FEATURE_FRAMEWORK
+    --help--
+        enable system.app feature
+
+config FEATURE_SYSTEM_ROUTER
+    bool "system.router"
+    default y
+	depends on FEATURE_FRAMEWORK
+    --help--
+        enable system.router feature
+
+config QUICKAPP_LMK_MAX_APP_COUNT
+	int "maximum number of applications supported in the background"
+	default 3
+	depends on QUICKAPP_ENABLE_LMK
+
+# include proprietary configurations if available (not included in open source release)
+osource "$APPSDIR/frameworks/runtimes/quickapp/proprietary/Kconfig"
+
+endif
+
+config QUICKAPP_SPLASH_SCREEN_ENABLE
+	bool "quickapp splash screen"
+	depends on ANIMATION_ENGINE
+	default n
+	---help---
+		Enable quickapp splash screen.
+
+if QUICKAPP_SPLASH_SCREEN_ENABLE
+
+config SPLASH_SCREEN_FADE_OUT_TIME
+	int "quickapp splash screen fade out time(ms)"
+	default 500
+
+config SPLASH_SCREEN_FADE_OUT_OPACITY
+	int "quickapp splash screen fade out opacity(0-1)"
+	default 0
+
+endif # QUICKAPP_SPLASH_SCREEN_ENABLE
+
+config QUICKAPP_INPUT_METHOD
+	bool "quickapp input method"
+	depends on UIKIT_INPUT_METHOD
+	default n
+	---help---
+		Enable quickapp input method framework.
+
+endmenu #QUICKAPP
+
+config QJS_EXTENDS
+  tristate "qjs extend features"
+  default n
+	depends on USE_QUICKJS
+  ---help---
+        Enable the qjs_extends features
+
+if QJS_EXTENDS
+
+config QJS_EXTENDS_TEST
+  tristate "qjs extend features test programe"
+  default n
+	depends on USE_QUICKJS
+  ---help---
+        Enable the qjs_extends_test
+
+config QJS_EXTENDS_LOG_LEVEL
+	int "qjs extends log level"
+	default 1
+	---help---
+		0 - DEBUG
+		1 - INFO
+		2 - WARNING
+		3 - ERROR
+
+endif

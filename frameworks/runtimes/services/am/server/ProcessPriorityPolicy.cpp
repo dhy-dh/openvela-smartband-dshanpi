@@ -1,0 +1,264 @@
+/*
+ * Copyright (C) 2023 Xiaomi Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#include "ProcessPriorityPolicy.h"
+
+#include "app/Logger.h"
+
+namespace os {
+namespace am {
+
+enum ProcessStatus {
+    FOREGROUND_PROCESS,
+    SYSTEM_HOME_PROCESS,
+    BACKGROUND_PROCESS,
+};
+
+enum LevelCountMask {
+    HIGH_LEVLE_CNT = (0b1111111111 << 20),
+    MIDDLE_LEVEL_CNT = (0b1111111111 << 10),
+    LOW_LEVEL_CNT = 0b1111111111,
+};
+
+static int calculateScore(AppIdPriorityInfo* pnode, int& levelCnt, ProcessStatus location) {
+    int score = 1000;
+
+    if (location == FOREGROUND_PROCESS) {
+        if (pnode->priorityLevel == ProcessPriority::PERSISTENT) {
+            return OS_PERSISTENT_PROC_ADJ;
+        }
+        score = pnode->oomScore > OS_FOREGROUND_APP_ADJ ? OS_FOREGROUND_APP_ADJ : pnode->oomScore;
+        return score;
+    } else if (location == SYSTEM_HOME_PROCESS) {
+        if (pnode->priorityLevel < ProcessPriority::PERSISTENT) {
+            score = OS_SYSTEM_HOME_APP_ADJ;
+            return score;
+        }
+    }
+
+    switch (pnode->priorityLevel) {
+        case ProcessPriority::PERSISTENT: {
+            score = OS_PERSISTENT_PROC_ADJ;
+            break;
+        }
+        case ProcessPriority::HIGH: {
+            score = OS_HIGH_LEVEL_MIN_ADJ + ((levelCnt & HIGH_LEVLE_CNT) >> 20);
+            levelCnt += (1 << 20);
+            break;
+        }
+        case ProcessPriority::MIDDLE: {
+            score = OS_MIDDLE_LEVEL_MIN_ADJ + ((levelCnt & MIDDLE_LEVEL_CNT) >> 10);
+            levelCnt += (1 << 10);
+            break;
+        }
+        case ProcessPriority::LOW: {
+            score = OS_LOW_LEVEL_MIN_ADJ + (levelCnt & LOW_LEVEL_CNT);
+            levelCnt += 1;
+            break;
+        }
+    }
+
+    return score;
+}
+
+ProcessPriorityPolicy::ProcessPriorityPolicy(LowMemoryManager* lmk) {
+    mLmk = lmk;
+    mHead = nullptr;
+    mTail = nullptr;
+    mBackgroundPos = nullptr;
+    lmk->setPrepareLMKCallback([this] { analyseProcessPriority(); });
+}
+
+ProcessPriorityPolicy::~ProcessPriorityPolicy() {
+    AppIdPriorityInfo* pnode = mHead;
+    while (pnode) {
+        const auto next = pnode->next;
+        delete pnode;
+        pnode = next;
+    }
+}
+
+void ProcessPriorityPolicy::analyseProcessPriority() {
+    ALOGD("analyseProcessPriority");
+    int levelcnt = 0;
+    AppIdPriorityInfo* pnode = mHead;
+    ProcessStatus processStatus = FOREGROUND_PROCESS;
+    while (pnode) {
+        if (pnode->next == mBackgroundPos && processStatus != FOREGROUND_PROCESS) {
+            processStatus = SYSTEM_HOME_PROCESS;
+        }
+        const int score = calculateScore(pnode, levelcnt, processStatus);
+        if (pnode->oomScore != score) {
+            pnode->oomScore = score;
+            mLmk->setPidOomScore(pnode->appId, pnode->oomScore);
+        }
+        // only one foreground process
+        processStatus = BACKGROUND_PROCESS;
+        pnode = pnode->next;
+    }
+}
+
+AppIdPriorityInfo* ProcessPriorityPolicy::get(AppId appId) {
+    AppIdPriorityInfo* pnode = mHead;
+    while (pnode) {
+        if (pnode->appId == appId) {
+            break;
+        }
+        pnode = pnode->next;
+    }
+    return pnode;
+}
+
+AppIdPriorityInfo* ProcessPriorityPolicy::add(AppId appId, bool isForeground,
+                                              ProcessPriority level) {
+    AppIdPriorityInfo* pnode = get(appId);
+    if (pnode == nullptr) {
+        pnode = new AppIdPriorityInfo{appId,   level,   OS_MIDDLE_LEVEL_MIN_ADJ,
+                                      clock(), nullptr, nullptr};
+        mLmk->setPidOomScore(appId, OS_MIDDLE_LEVEL_MIN_ADJ); // set default
+        if (isForeground) {
+            pnode->next = mHead;
+            if (mHead) mHead->last = pnode;
+            mHead = pnode;
+            if (mTail == nullptr) {
+                mTail = pnode;
+            }
+        } else {
+            pnode->next = mBackgroundPos;
+            if (mBackgroundPos) {
+                pnode->last = mBackgroundPos->last;
+                if (mBackgroundPos->last) {
+                    mBackgroundPos->last->next = pnode;
+                } else {
+                    mHead = pnode;
+                }
+                mBackgroundPos->last = pnode;
+            } else {
+                pnode->last = mTail;
+                if (mTail) mTail->next = pnode;
+                mTail = pnode;
+                if (!mHead) {
+                    mHead = pnode;
+                }
+            }
+            mBackgroundPos = pnode;
+        }
+    }
+
+    return pnode;
+}
+
+void ProcessPriorityPolicy::remove(AppId appId) {
+    AppIdPriorityInfo* pnode = get(appId);
+    if (pnode != nullptr) {
+        if (mHead == pnode) {
+            mHead = pnode->next;
+        }
+        if (mTail == pnode) {
+            mTail = pnode->last;
+        }
+        if (mBackgroundPos == pnode) {
+            mBackgroundPos = pnode->next;
+        } else if (mBackgroundPos == pnode->next) {
+            if (pnode->next) {
+                mBackgroundPos = pnode->next->next;
+            }
+        }
+
+        if (pnode->last) {
+            pnode->last->next = pnode->next;
+        }
+        if (pnode->next) {
+            pnode->next->last = pnode->last;
+        }
+
+        delete pnode;
+    }
+
+    mLmk->cancelMonitorPid(appId);
+}
+
+void ProcessPriorityPolicy::pushForeground(AppId appId) {
+    AppIdPriorityInfo* pnode = get(appId);
+    if (pnode) {
+        if (mBackgroundPos && pnode == mBackgroundPos->last) {
+            mBackgroundPos = mHead;
+        }
+        if (mBackgroundPos && pnode == mBackgroundPos) {
+            mBackgroundPos = pnode->next;
+        }
+        if (mHead != pnode) {
+            if (pnode->next) pnode->next->last = pnode->last;
+            if (pnode->last) {
+                pnode->last->next = pnode->next;
+            }
+            if (mTail == pnode && pnode->last) {
+                mTail = pnode->last;
+            }
+
+            pnode->next = mHead;
+            pnode->last = nullptr;
+            mHead->last = pnode;
+            mHead = pnode;
+        }
+        pnode->lastWakeUptime = clock();
+    }
+}
+
+void ProcessPriorityPolicy::intoBackground(AppId appId) {
+    AppIdPriorityInfo* pnode = get(appId);
+    if (pnode) {
+        if (pnode != mTail && pnode != mBackgroundPos) {
+            if (mBackgroundPos && mBackgroundPos->last == pnode) {
+                return;
+            }
+            if (pnode->last) pnode->last->next = pnode->next;
+            if (pnode->next) {
+                pnode->next->last = pnode->last;
+            }
+            if (mHead == pnode) {
+                mHead = pnode->next;
+            }
+            pnode->next = mBackgroundPos;
+            if (mBackgroundPos) {
+                pnode->last = mBackgroundPos->last;
+                mBackgroundPos->last->next = pnode;
+                mBackgroundPos->last = pnode;
+
+            } else {
+                pnode->last = mTail;
+                mTail->next = pnode;
+                mTail = pnode;
+            }
+            mBackgroundPos = pnode;
+        }
+    }
+}
+
+std::ostream& operator<<(std::ostream& os, ProcessPriorityPolicy& policy) {
+    policy.analyseProcessPriority();
+    AppIdPriorityInfo* pnode = policy.mHead;
+    os << "\n\nProcess priority OomAdjScore: (appId, score)" << std::endl;
+    while (pnode) {
+        os << "(" << pnode->appId << "," << pnode->oomScore << ") ";
+        pnode = pnode->next;
+    }
+    os << std::endl;
+    return os;
+}
+
+} // namespace am
+} // namespace os

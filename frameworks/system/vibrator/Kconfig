@@ -1,0 +1,85 @@
+#
+# Copyright (C) 2023 Xiaomi Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+config VIBRATOR
+	bool "vibrator"
+	depends on NET_RPMSG || NET_LOCAL
+	depends on LIBUV
+	default n
+
+if VIBRATOR
+
+config VIBRATOR_SERVER
+	bool "vibrator server"
+	default n
+
+config VIBRATOR_SERVER_CPUNAME
+	string "which cpu vibrator server runs on"
+	depends on !VIBRATOR_SERVER
+	default "ap"
+
+config VIBRATOR_PRIORITY
+	int "task priority"
+	default 200
+
+config VIBRATOR_STACKSIZE
+	int "stack size"
+	default 8192
+
+config VIBRATOR_DEFAULT_INTENSITY
+	int "vibration default intensity"
+	depends on VIBRATOR_SERVER
+	default 2
+
+config VIBRATOR_STATE_REPORT_LIMIT
+	int "vibrator state report limit, in milliseconds"
+	default 100
+	---help---
+		Publish state when the play length is greater than the limit.
+
+config VIBRATOR_UV_API
+	bool "add virbator uv api"
+	depends on LIBUV
+	default y
+
+config VIBRATOR_TEST
+	bool "vibrator api test"
+	default n
+
+config DEBUG_VIBRATOR
+	bool "vibrator debug output"
+	default n
+
+if DEBUG_VIBRATOR
+
+config VIBRATOR_ERROR
+	bool "vibrator error output"
+	default n
+	depends on DEBUG_ERROR
+
+config VIBRATOR_WARN
+	bool "vibrator warn output"
+	default n
+	depends on DEBUG_WARN
+
+config VIBRATOR_INFO
+	bool "vibrator info output"
+	default n
+	depends on DEBUG_INFO
+
+endif # DEBUG_VIBRATOR
+
+endif # VIBRATOR

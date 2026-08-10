@@ -1,0 +1,145 @@
+[
+  {
+    "id": "0",
+    "nodes": {
+      "ROOT": {
+        "type": {
+          "resolvedName": "Div"
+        },
+        "isCanvas": true,
+        "props": {
+          "style": {
+            "width": null,
+            "height": null,
+            "alignItems": "center",
+            "justifyContent": "center",
+            "backgroundColor": "#000000"
+          },
+          "id": "core-editor"
+        },
+        "displayName": "Div",
+        "custom": {
+          "css": {},
+          "displayName": "Page"
+        },
+        "hidden": false,
+        "nodes": [
+          "Ue_QHSUB6p"
+        ],
+        "linkedNodes": {}
+      },
+      "Ue_QHSUB6p": {
+        "type": {
+          "resolvedName": "Div"
+        },
+        "isCanvas": true,
+        "props": {
+          "style": {
+            "width": "400px",
+            "flexDirection": "row",
+            "flexWrap": "wrap",
+            "justifyContent": "flex-start",
+            "alignItems": "flex-end",
+            "media": {
+              "width:336": {
+                "width": "300px"
+              },
+              "max-width:192": {
+                "width": "100px"
+              },
+              "width:192": {
+                "width": "150px",
+                "justifyContent": "center"
+              }
+            }
+          },
+          "forLoop": {}
+        },
+        "displayName": "Div",
+        "custom": {
+          "css": {},
+          "displayName": "Div"
+        },
+        "parent": "ROOT",
+        "hidden": false,
+        "nodes": [
+          "Z_109TJNJ4"
+        ],
+        "linkedNodes": {}
+      },
+      "Z_109TJNJ4": {
+        "type": {
+          "resolvedName": "Div"
+        },
+        "isCanvas": true,
+        "props": {
+          "style": {
+            "width": "100px",
+            "height": 100,
+            "alignItems": "center",
+            "justifyContent": "center"
+          },
+          "forLoop": {
+            "for": "listdata"
+          }
+        },
+        "displayName": "Div",
+        "custom": {
+          "css": {},
+          "displayName": "Div"
+        },
+        "parent": "Ue_QHSUB6p",
+        "hidden": false,
+        "nodes": [
+          "2lTcPofM7D"
+        ],
+        "linkedNodes": {}
+      },
+      "2lTcPofM7D": {
+        "type": {
+          "resolvedName": "Image"
+        },
+        "isCanvas": false,
+        "props": {
+          "src": "",
+          "alt": "",
+          "actions": "",
+          "style": {
+            "borderRadius": 0,
+            "width": "80px",
+            "height": "80px",
+            "objectFit": "cover"
+          },
+          "dataBinding": {
+            "src": "$item.icons"
+          }
+        },
+        "displayName": "Image",
+        "custom": {
+          "displayName": "Image"
+        },
+        "parent": "Z_109TJNJ4",
+        "hidden": false,
+        "nodes": [],
+        "linkedNodes": {}
+      }
+    },
+    "store": {
+      "breakPointsEnabled": true,
+      "breakPoints": [
+        192,
+        336,
+        480
+      ],
+      "currPoint": ",192",
+      "queryEnabled": false,
+      "query": "",
+      "previewWidth": 192,
+      "previewHeight": 480,
+      "radius": 25,
+      "zoomLevel": 0.6,
+      "device": "L61",
+      "rangeType": "max"
+    }
+  }
+]

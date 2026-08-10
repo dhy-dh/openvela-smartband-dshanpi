@@ -1,0 +1,43 @@
+if(CONFIG_QUICKAPP_VAPP)
+
+  nuttx_add_application(
+    NAME
+    vapp_c
+    DEFINITIONS
+    -DAIOTJS_HAVE_GUI
+    INCLUDE_DIRECTORIES
+    ${NUTTX_APPS_DIR}/frameworks/runtimes/ash/c/include
+    SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/main.c
+    ${CMAKE_CURRENT_LIST_DIR}/qwrapper.cpp
+    ${SHELL_COMMON_SRCS}
+    STACKSIZE
+    ${CONFIG_QUICKAPP_STACKSIZE}
+    PRIORITY
+    ${CONFIG_QUICKAPP_PRIORITY}
+    DEPENDS
+    ${QUICKAPP_COMMON_LIBS}
+    cash
+    lvgl)
+
+  include(${CMAKE_CURRENT_LIST_DIR}/../common/CMakeLists.txt)
+  nuttx_add_application(
+    NAME
+    vapp
+    DEFINITIONS
+    -DAIOTJS_HAVE_GUI
+    INCLUDE_DIRECTORIES
+    ${SHELL_COMMON_INCLUDES}
+    SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/main.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/qwrapper.cpp
+    ${SHELL_COMMON_SRCS}
+    STACKSIZE
+    ${CONFIG_QUICKAPP_STACKSIZE}
+    PRIORITY
+    ${CONFIG_QUICKAPP_PRIORITY}
+    DEPENDS
+    ${QUICKAPP_COMMON_LIBS}
+    cash
+    lvgl)
+endif(CONFIG_QUICKAPP_VAPP)

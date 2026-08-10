@@ -1,0 +1,239 @@
+<import name="number" src="../../common/number.ux"></import>
+<template>
+	<div class="page-wrap">
+		<div class="demo-page result-wrap">
+			<!-- <div class="log">
+				<text>{{ strLog }}</text>
+			</div> -->
+			<div class="res-tag" onclick="jump('/pages/index')">
+				<img if="{{resType === 2}}" src="../../common/high.png" />
+				<img elif="{{resType === 1}}" src="../../common/middle.png" />
+				<img elif="{{resType === 0}}" src="../../common/low.png" />
+			</div>
+			<div class="max-power item-center">
+				<text class="bold">最大力度(G)</text>
+				<number value="{{maxPower}}"></number>
+			</div>
+			<div class="max-power item-center">
+				<text class="bold">最大速度(毫秒)</text>
+				<number value="{{maxSpeed}}"></number>
+			</div>
+			<div class="item-center again-btn" if="{{maxPower || maxSpeed}}">
+				<div class="c-btn" onclick="jump('/pages/loading')">
+					<text class="c-btn-txt">再来一次</text>
+				</div>
+			</div>
+			<!-- <div class="mask" ontouchstart="{{_=>{showRecord = false}}}" if="{{showRecord}}">
+				<img src="../../common/new_record_cn.png" /> 
+			</div> -->
+		</div>
+	</div>
+</template>
+
+<script>
+import router from "@system.router";
+import storage from "@system.storage";
+import sensor from "@system.sensor";
+const formatNumber = global.formatNumber;
+const getDisplayNumber = global.getDisplayNumber;
+const deviceInfo = global.deviceInfo;
+export default {
+	private: {
+		// showRecord: false,
+		powerRecorder: -1,
+		maxPower: "",
+		maxSpeed: "",
+		storageSpeed: "",
+		x: "",
+		y: "",
+		z: "",
+		arrXYZ: [],
+		resType: -1,
+		// strLog: "start log",
+	},
+	onInit() {
+		let _this = this;
+		// console.log(deviceInfo, deviceInfo.language);
+		try {
+			storage.get({
+				key: "maxPower",
+				success: (data) => {
+					if (data) {
+						this.powerRecorder = data;
+					}
+				},
+			});
+			storage.get({
+				key: "maxSpeed",
+				success: (data) => {
+					if (data) {
+						this.storageSpeed = data || "";
+					}
+				},
+			});
+		} catch (e) {
+			// this.log(e);
+		}
+		sensor.subscribeAccelerometer({
+			interval: "game",
+			callback: function (ret) {
+				const { x, y, z } = ret;
+				_this.arrXYZ.push({ x, y, z });
+			},
+		});
+		//采集3s钟，如果再次进入
+		setTimeout((_) => {
+			_this.getResult();
+		}, 3000);
+	},
+	getResult() {
+		//该方法在1s后执行，storage.get肯定会完成
+		sensor.unsubscribeAccelerometer();
+		let maxRes = 0;
+		let maxIndex = 0;
+		let maxSpeed = 0;
+		this.arrXYZ.forEach((res, ind) => {
+			let curNum = Math.sqrt(res.x * res.x + res.y * res.y + res.z * res.z);
+			if (curNum > maxRes) {
+				maxRes = curNum;
+				maxIndex = ind;
+			}
+		});
+		//对应标签关系
+		maxRes = formatNumber(getDisplayNumber(maxRes));
+		if (maxRes > 50) {
+			//限定最大值
+			maxRes = 50;
+		}
+		//20ms采集一次，一共采集了maxIndex次,如果刚好是第一次，那就取20ms
+		maxSpeed = formatNumber(maxIndex * 20 || 20);
+		if (maxSpeed > 999) {
+			//限定最大数为999
+			maxSpeed = 999;
+		}
+		//先走判断在赋值
+		if (maxRes < 3.1) {
+			//出拳失败，直接跳转
+			// return;
+			router.replace({
+				uri: "pages/fail",
+			});
+			return;
+		} else if (maxRes > 18) {
+			this.resType = 2;
+		} else if (maxRes > 12) {
+			this.resType = 1;
+		} else {
+			this.resType = 0;
+		}
+		//是否出现新记录
+		if (this.powerRecorder && this.powerRecorder < maxRes) {
+			// this.showRecord = true;
+			storage.set({
+				key: "maxPower",
+				value: String(maxRes),
+				success: (data) => {},
+			});
+		}
+		//毫秒数越小，表示速度越快
+		if (this.storageSpeed > 0) {
+			if (maxSpeed > 0 && this.storageSpeed > maxSpeed) {
+				storage.set({
+					key: "maxSpeed",
+					value: String(maxSpeed),
+					success: (data) => {},
+				});
+			}
+		} else if (maxSpeed > 0) {
+			//当本地存储不存在的时候，如果maxSpeed存储，则maxSpeed为记录
+			storage.set({
+				key: "maxSpeed",
+				value: String(maxSpeed),
+				success: (data) => {},
+			});
+		}
+		this.maxPower = maxRes;
+		// 当前速度
+		this.maxSpeed = maxSpeed;
+	},
+	jump(path) {
+		router.replace({
+			uri: path,
+		});
+	},
+	// log(str) {
+	// 	this.strLog = str;
+	// },
+};
+</script>
+
+<style>
+.log {
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 40px;
+	color: #f00;
+	font-size: 12px;
+}
+
+/* .mask {
+	position: absolute;
+	top: 0;
+	left: 0;
+	bottom: 0;
+	right: 0;
+	padding-top: 90px;
+	background-image: url(../../common/mask.png); 
+} **/
+
+.result-wrap {
+	position: relative;
+	padding-top: 60px;
+}
+
+.item-center {
+	align-items: center;
+}
+
+.max-num {
+	padding-top: 20px;
+	flex-direction: column;
+	height: 70px;
+}
+
+.max-power {
+	width: 100%;
+	flex-direction: column;
+	margin-top: 20px;
+	font-size: 36px;
+}
+
+.bold {
+	font-size: 36px;
+}
+
+@media (shape: pill-shaped) {
+	.bold {
+		font-size: 24px;
+	}
+}
+
+.again-btn {
+	margin-top: 26px;
+	width: 100%;
+	flex-direction: column;
+}
+
+.res-tag {
+	position: absolute;
+	right: 25px;
+	top: 28px;
+}
+
+@media (shape: circle) {
+	.res-tag {
+		right: 120px;
+	}
+}
+</style>

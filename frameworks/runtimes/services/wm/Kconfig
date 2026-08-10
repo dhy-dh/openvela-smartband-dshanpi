@@ -1,0 +1,105 @@
+#
+# Copyright (C) 2023 Xiaomi Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+config SYSTEM_WINDOW_SERVICE
+	tristate "Enable WMS(window manager service)"
+	default n
+	depends on ANDROID_BINDER
+	depends on SYSTEM_SERVER
+	depends on FS_SHMFS
+	depends on GRAPHICS_LVGL
+	depends on LV_ENABLE_GLOBAL_CUSTOM || BUILD_KERNEL || SYSTEM_SERVER_LITE
+	depends on LV_USE_NUTTX
+	depends on LV_USE_NUTTX_LIBUV
+	depends on UIKIT
+	depends on KVDB
+
+if SYSTEM_WINDOW_SERVICE
+
+config SYSTEM_WINDOW_SERVICE_STACKSIZE
+	int "WMS stack size"
+	default DEFAULT_TASK_STACKSIZE
+
+config SYSTEM_WINDOW_SERVICE_PRIORITY
+	int "WMS priority"
+	default 100
+
+config SYSTEM_WINDOW_SERVICE_TEST
+	tristate "Enable WMS test"
+	default n
+	depends on LIB_GOOGLETEST
+
+config ENABLE_BUFFER_QUEUE_BY_NAME
+	bool "Enable buffer queue by name"
+	default y
+
+config ENABLE_WINDOW_LIMIT_MAX
+	int "Support max application window"
+	default 10
+
+config ENABLE_TRANSITION_ANIMATION
+	bool "Enable window transition animation"
+	default n
+	depends on LVX_USE_ANIMENGINE_ADAPTER
+
+if LV_ENABLE_GLOBAL_CUSTOM
+config ENABLE_WINDOW_TRIPLE_BUFFER
+	bool "Enable window triple buffer"
+	default n
+
+config SYSTEM_WINDOW_USE_VSYNC_EVENT
+	bool "Enable window vsync event"
+	default n
+	depends on LV_ENABLE_GLOBAL_CUSTOM
+endif
+
+config SYSTEM_WINDOW_FBDEV_DEVICEPATH
+	string "Wms framebuffer device path"
+	default "/dev/fb0"
+
+config SYSTEM_WINDOW_TOUCHPAD_DEVICEPATH
+	string "Wms touchpad device path"
+	default "/dev/input0"
+
+choice
+    prompt "App window render mode based on WMS"
+    default APP_WINDOW_RENDER_MODE_PARTIAL
+
+    config APP_WINDOW_RENDER_MODE_PARTIAL
+        bool "Partial window render mode"
+
+    config APP_WINDOW_RENDER_MODE_FULL
+        bool "Full window render mode"
+endchoice
+
+config APP_WINDOW_RENDER_MODE
+	int
+	default 1 if APP_WINDOW_RENDER_MODE_PARTIAL
+	default 2 if APP_WINDOW_RENDER_MODE_FULL
+
+config WINDOW_SERVICE_LOG_LEVEL
+	int "Window Service Log Level"
+	default 4
+	range 0 7
+	help
+		LOG_EMERG   :0
+		LOG_ALERT   :1
+		LOG_CRIT    :2
+		LOG_ERR     :3
+		LOG_WARNING :4
+		LOG_NOTICE  :5
+		LOG_INFO    :6
+		LOG_DEBUG   :7
+endif

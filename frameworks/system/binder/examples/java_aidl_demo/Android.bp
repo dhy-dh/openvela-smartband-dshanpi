@@ -1,0 +1,8 @@
+// Copyright (C) 2024 Xiaomi Corporation
+
+filegroup {
+    name: "cpctest_aidl",
+    srcs: [
+        "src/IJavaTestStuff.aidl",
+    ],
+}

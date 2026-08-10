@@ -1,0 +1,158 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+menuconfig UIKIT
+	bool "UIKit"
+	default n
+	depends on GRAPHICS_LVGL
+	---help---
+		Enable UIKit
+
+if UIKIT
+
+menuconfig UIKIT_FONT_MANAGER
+	bool "UIKIT_FONT_MANAGER"
+	default y
+	depends on LV_USE_FREETYPE
+	---help---
+		Enable font-manager for freetype fonts.
+
+if UIKIT_FONT_MANAGER
+
+config UIKIT_FONT_LIB_PATH
+	string "Font library path"
+	default "/data/"
+	---help---
+		The path of the font library. eg:
+		/data/	, /data/font/xxxxxL
+		Note: '/' is required at the end of the string.
+
+choice UIKIT_FONT_CREATE_TYPE_CHOICE
+	prompt "Choose font create type"
+	default UIKIT_FONT_CREATE_TYPE_BITMAP
+	---help---
+		Select the font create type
+
+	config UIKIT_FONT_CREATE_TYPE_BITMAP
+		bool "Bitmap"
+	config UIKIT_FONT_CREATE_TYPE_OUTLINE
+		bool "Outline"
+endchoice
+
+config UIKIT_FONT_CREATE_TYPE
+	int
+	default 0 if UIKIT_FONT_CREATE_TYPE_BITMAP
+	default 1 if UIKIT_FONT_CREATE_TYPE_OUTLINE
+
+config UIKIT_FONT_NAME_MAX
+	int "Font name max length"
+	default 32
+
+config UIKIT_FONT_EXT_NAME
+	string "Font file extension"
+	default "ttf"
+
+config UIKIT_FONT_EXT_MAX
+	int "Font file extension max length"
+	default 8
+
+config UIKIT_FONT_CACHE_SIZE
+	int "Font cache size"
+	default 8
+	---help---
+		The maximum number of caches for reuse freetype info
+
+config UIKIT_FONT_USE_LV_FONT_DEFAULT
+	bool "Use LV_FONT_DEFAULT when font creation fails"
+	default y
+
+config UIKIT_FONT_USE_FONT_FAMILY
+	bool "Enable font-family"
+	select NETUTILS_CJSON
+	default n
+
+config UIKIT_FONT_CONFIG_FILE_PATH
+	string "Font config file path"
+	depends on UIKIT_FONT_USE_FONT_FAMILY
+	default "/etc/font_config.json"
+
+config UIKIT_FONT_USE_EMOJI
+	bool "Enable emoji support"
+	depends on UIKIT_FONT_USE_FONT_FAMILY
+	default y
+
+config UIKIT_FONT_EMOJI_HEADER
+	string "Name header used to identify Emoji"
+	depends on UIKIT_FONT_USE_EMOJI
+	default "Emoji"
+
+endif # UIKIT_FONT_MANAGER
+
+config UIKIT_VIDEO_ADAPTER
+	bool "Enable video adapter based on media server"
+	depends on MEDIA_SERVER && NETUTILS_CJSON
+	default n
+
+if UIKIT_VIDEO_ADAPTER
+
+config UIKIT_VIDEO_CONFIG_FILE_PATH
+	string "Video config file path"
+	default "/etc/uikit_video_config.json"
+
+endif # UIKIT_VIDEO_ADAPTER
+
+config UIKIT_QRSCAN
+	bool "QR scan library"
+	depends on LIB_QUIRC
+	default n
+
+config UIKIT_MARKDOWN
+	bool "MarkDown library"
+	depends on LIB_CMARK_GFM
+	default n
+
+config UIKIT_ANIMATION_VIEW_PLAYER
+	bool "Vector animation player"
+	depends on VG_ANIMATION_VIEW
+	default n
+
+config UIKIT_KEYBOARD
+	bool "Enable keyboard"
+	default n
+
+config UIKIT_INPUT_METHOD
+	bool "Enable input method"
+	default n
+
+if UIKIT_INPUT_METHOD
+
+choice UIKIT_INPUT_METHOD_TYPE_CHOICE
+	prompt "Choose input method type"
+	default UIKIT_INPUT_METHOD_TYPE_NONE
+	---help---
+		Select the input method type
+
+	config UIKIT_INPUT_METHOD_TYPE_KEYBOARD
+		bool "Keyboard"
+		depends on UIKIT_KEYBOARD
+	config UIKIT_INPUT_METHOD_TYPE_FRAMEWORK
+		bool "Framework"
+	config UIKIT_INPUT_METHOD_TYPE_NONE
+		bool "None"
+endchoice
+
+config UIKIT_INPUT_METHOD_DEFAULT_TYPE
+    int
+    default 0 if UIKIT_INPUT_METHOD_TYPE_KEYBOARD
+    default 1 if UIKIT_INPUT_METHOD_TYPE_FRAMEWORK
+    default 2 if UIKIT_INPUT_METHOD_TYPE_NONE
+    ---help---
+		Input method type (read-only, configured via selection)
+
+endif # UIKIT_INPUT_METHOD
+
+source "$APPSDIR/frameworks/graphics/uikit/test/Kconfig"
+
+endif # UIKIT

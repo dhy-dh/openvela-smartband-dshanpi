@@ -1,0 +1,42 @@
+[
+    {
+        "id": 1,
+        "type": "enter",
+        "action": {
+            "fromState": {
+                "opacity": 0.0,
+                "scale": 0.8
+            },
+            "toState": {
+                "opacity": 1.0,
+                "scale": 1.0
+            },
+            "config": {
+                "ease": [
+                    "cubicInOut",
+                    0.3
+                ]
+            }
+        }
+    },
+    {
+        "id": 2,
+        "type": "exit",
+        "action": {
+            "fromState": {
+                "opacity": 1.0,
+                "scale": 1.0
+            },
+            "toState": {
+                "opacity": 0.0,
+                "scale": 0.8
+            },
+            "config": {
+                "ease": [
+                    "cubicInOut",
+                    0.2
+                ]
+            }
+        }
+    }
+]

@@ -1,0 +1,37 @@
+{
+  "package": "com.vela.game.dice",
+  "name": "掷骰子",
+  "versionName": "1.0.3",
+  "versionCode": 4,
+  "minPlatformVersion": 1000,
+  "icon": "/common/logo.png",
+  "deviceTypeList": [
+    "watch"
+  ],
+  "features": [
+    {
+      "name": "system.router"
+    },
+    { 
+      "name": "system.fetch" 
+    },
+    {
+      "name": "system.storage"
+    }
+  ],
+  "config": {
+    "logLevel": "log",
+    "designWidth": "device-width"
+  },
+  "router": {
+    "entry": "pages/index",
+    "pages": {
+      "pages/index": {
+        "component": "index"
+      },
+      "pages/history": {
+        "component": "history"
+      }
+    }
+  }
+}

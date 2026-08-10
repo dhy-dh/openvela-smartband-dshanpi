@@ -1,0 +1,62 @@
+{
+  "package": "com.application.watch.fistPower",
+  "name": "拳力挑战",
+  "versionName": "1.0.9",
+  "versionCode": 10,
+  "minPlatformVersion": 1200,
+  "icon": "/common/fist_logo.png",
+  "simulationVersion": "default",
+  "deviceTypeList": [
+    "watch"
+  ],
+  "features": [
+    {
+      "name": "system.router"
+    },
+    {
+      "name": "system.storage"
+    },
+    {
+      "name": "system.sensor"
+    },
+    {
+      "name": "system.device"
+    },
+    {
+      "name": "system.brightness"
+    },
+    {
+      "name": "system.vibrator"
+    }
+  ],
+  "config": {
+    "logLevel": "log",
+    "designWidth": "device-width"
+  },
+  "router": {
+    "entry": "pages/index",
+    "pages": {
+      "pages/index": {
+        "component": "index"
+      },
+      "pages/loading": {
+        "component": "loading"
+      },
+      "pages/result": {
+        "component": "result"
+      },
+      "pages/record": {
+        "component": "record"
+      },
+      "pages/fail": {
+        "component": "fail"
+      },
+      "pages/introduce": {
+        "component": "introduce"
+      },
+      "pages/test": {
+        "component": "test"
+      }
+    }
+  }
+}

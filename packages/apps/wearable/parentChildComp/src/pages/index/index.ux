@@ -1,0 +1,47 @@
+<template>
+  <div class="demo-page">
+    <text class="title">联系人</text>
+    <text class="message">{{message}}</text>
+    <avatar-card name="张伟" color="#E91E63" oncardtap="onCardTap"></avatar-card>
+    <avatar-card name="李娜" color="#2196F3" oncardtap="onCardTap"></avatar-card>
+    <avatar-card name="王磊" color="#4CAF50" oncardtap="onCardTap"></avatar-card>
+    <avatar-card name="赵敏" color="#FF9800" oncardtap="onCardTap"></avatar-card>
+    <avatar-card name="陈浩" color="#9C27B0" oncardtap="onCardTap"></avatar-card>
+  </div>
+</template>
+
+<import name="avatar-card" src="../../components/avatar-card.ux"></import>
+
+<script>
+export default {
+  private: {
+    message: '点击联系人查看信息'
+  },
+
+  onCardTap(evt) {
+    this.message = '你选择了: ' + evt.detail.name
+  }
+}
+</script>
+
+<style>
+.demo-page {
+  flex-direction: column;
+  align-items: center;
+  background-color: #000000;
+  padding-top: 32px;
+}
+
+.title {
+  font-size: 28px;
+  font-weight: bold;
+  color: #ffffff;
+  margin-bottom: 10px;
+}
+
+.message {
+  font-size: 20px;
+  color: #aaaaaa;
+  margin-bottom: 16px;
+}
+</style>

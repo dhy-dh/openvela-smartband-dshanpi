@@ -1,0 +1,109 @@
+############################################################################
+#
+# Copyright (C) 2022-2024 Xiaomi Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+############################################################################
+
+config SC_SET_MODEL_API
+	bool "enable set_model security api"
+	default n
+	---help---
+		This config enable the set_model security api, which is
+		used to get the device infomation (SN, Mac etc..) from the
+		storage device/file system and set to kvdb.
+
+if SC_SET_MODEL_API
+
+config SC_SET_MODEL_TOOL
+	bool "use security set model tool"
+	default n
+	---help---
+		"use security set model tool"
+
+config SC_SET_MODEL_MIIO_PSM_PATH
+	string "the data path"
+	default "/data/security"
+
+config SC_SET_MODEL_PRODUCT_NAME
+	string "product name"
+	default "86v1"
+
+config SC_SET_MODEL_PRODUCT_ID
+	string "product id"
+	default "9955"
+
+config SC_SET_MODEL_PRODUCT_MARKET_NAME
+	string "product market name"
+	default "AI Speaker"
+
+config SC_SET_MODEL_PRODUCT_MODEL
+	string "product model"
+	default "xiaomi.controller.86v1"
+
+config SC_SET_MODEL_PRODUCT_APP_ID
+	string "application id"
+	default "909534731052254208"
+
+config SC_SET_MODEL_PRODUCT_HARDWARE
+	string "hardware name"
+	default "X4P"
+
+config SC_SET_MODEL_DEFAULT_SN_VALUE
+	string "sn value, its length shall be 15"
+	default "55118/F3Z800841"
+
+config SC_SET_MODEL_DEFAULT_MAC_WIFI_VALUE
+	string "mac_wifi value, its length shall be 17"
+	default "42:43:44:45:46:47"
+
+config SC_SET_MODEL_DEFAULT_MAC_BT_VALUE
+	string "mac_bt value, its length shall be 17"
+	default "42:43:44:45:46:47"
+
+config SC_SET_MODEL_DEFAULT_MIIO_DID_VALUE
+	string "miio_did value, its length shall be 9"
+	default"000000001"
+
+config SC_SET_MODEL_DEFAULT_MIIO_KEY_VALUE
+	string "miio_key value, its length shall be 16"
+	default "0000000000000001"
+
+config SC_SET_MODEL_DEFAULT_COLOR_ID_VALUE
+	string "color_id value, its length shall be 1"
+	default "0"
+
+config SC_SET_MODEL_DEFAULT_COLOR_DESC_VALUE
+	string "color_desc value, its length shall be 15"
+	default "000000000000000"
+
+config SC_SET_MODEL_DEVICE_INFO_PATH
+	string "device info path"
+	default "/data/etc/device.info"
+
+config SC_SET_MODEL_PROGNAME
+	string "Program name"
+	default "set_model"
+	---help---
+		This is the name of the set_model that will be used
+
+config SC_SET_MODEL_PRIORITY
+	int "set model test task priority"
+	default 100
+
+config SC_SET_MODEL_STACKSIZE
+	int "set model test stack size"
+	default 4096
+
+endif

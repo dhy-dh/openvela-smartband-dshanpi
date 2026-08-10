@@ -1,0 +1,2047 @@
+module lv_binding@1.0;
+
+[native_type="lv_color_t", from_native="js_value_from_color", to_native="js_value_to_color"]
+type lv_color_t = uint;
+
+[native_type="lv_color32_t", from_native="js_value_from_color32", to_native="js_value_to_color32"]
+type lv_color32_t = uint;
+
+[native_type="lv_coord_t", to_native="js_tocoord"]
+type lv_coord_t = int;
+
+[native_type="lv_chart_series_t*", from_native="js_value_from_pointer", to_native="js_value_to_pointer"]
+type lv_chart_series_p = ulong;
+[native_type="lv_chart_cursor_t*", from_native="js_value_from_pointer", to_native="js_value_to_pointer"]
+type lv_chart_cursor_p = ulong;
+
+[native_type="lv_font_t*", from_native="js_value_from_pointer", to_native="js_value_to_pointer"]
+type lv_font_p = ulong;
+
+[native_type="lv_point_t"]
+struct Point {
+  lv_coord_t x;
+  lv_coord_t y;
+};
+
+// [native_type="lv_opa_t"]
+// type lv_opa_t = uint;
+
+
+enum Align {
+  [value="LV_ALIGN_TOP_LEFT"]
+  TOP_LEFT,
+  [value="LV_ALIGN_TOP_MID"]
+  TOP_MID,
+  [value="LV_ALIGN_TOP_RIGHT"]
+  TOP_RIGHT,
+  [value="LV_ALIGN_BOTTOM_LEFT"]
+  BOTTOM_LEFT,
+  [value="LV_ALIGN_BOTTOM_MID"]
+  BOTTOM_MID,
+  [value="LV_ALIGN_BOTTOM_RIGHT"]
+  BOTTOM_RIGHT,
+  [value="LV_ALIGN_LEFT_MID"]
+  LEFT_MID,
+  [value="LV_ALIGN_RIGHT_MID"]
+  RIGHT_MID,
+  [value="LV_ALIGN_CENTER"]
+  CENTER,
+
+  [value="LV_ALIGN_OUT_TOP_LEFT"]
+  OUT_TOP_LEFT,
+  [value="LV_ALIGN_OUT_TOP_MID"]
+  OUT_TOP_MID,
+  [value="LV_ALIGN_OUT_TOP_RIGHT"]
+  OUT_TOP_RIGHT,
+  [value="LV_ALIGN_OUT_BOTTOM_LEFT"]
+  OUT_BOTTOM_LEFT,
+  [value="LV_ALIGN_OUT_BOTTOM_MID"]
+  OUT_BOTTOM_MID,
+  [value="LV_ALIGN_OUT_BOTTOM_RIGHT"]
+  OUT_BOTTOM_RIGHT,
+  [value="LV_ALIGN_OUT_LEFT_TOP"]
+  OUT_LEFT_MID,
+  [value="LV_ALIGN_OUT_LEFT_MID"]
+  OUT_LEFT_MID,
+  [value="LV_ALIGN_OUT_LEFT_BOTTOM"]
+  OUT_LEFT_MID,
+  [value="LV_ALIGN_OUT_RIGHT_TOP"]
+  OUT_RIGHT_MID,
+  [value="LV_ALIGN_OUT_RIGHT_MID"]
+  OUT_RIGHT_MID,
+  [value="LV_ALIGN_OUT_RIGHT_BOTTOM"]
+  OUT_RIGHT_MID,
+};
+
+enum TextAlign {
+  [value="LV_TEXT_ALIGN_AUTO"]
+  AUTO,
+  [value="LV_TEXT_ALIGN_LEFT"]
+  LEFT,
+  [value="LV_TEXT_ALIGN_CENTER"]
+  CENTER,
+  [value="LV_TEXT_ALIGN_RIGHT"]
+  RIGHT
+};
+
+enum Animate {
+  [value="LV_ANIM_OFF"]
+  OFF,
+  [value="LV_ANIM_ON"]
+  ON
+};
+
+
+enum Direction {
+  [value="LV_DIR_NONE"]
+  NONE,
+  [value="LV_DIR_LEFT"]
+  LEFT,
+  [value="LV_DIR_RIGHT"]
+  RIGHT,
+  [value="LV_DIR_TOP"]
+  TOP,
+  [value="LV_DIR_BOTTOM"]
+  BOTTOM,
+  [value="LV_DIR_HOR"]
+  HOR,
+  [value="LV_DIR_VER"]
+  VER,
+  [value="LV_DIR_ALL"]
+  ALL
+};
+
+enum Color {
+  [init="lv_color_to_u32(lv_color_white())"]
+  White,
+  [init="lv_color_to_u32(lv_color_black())"]
+  Black,
+  [init="lv_color_to_u32(lv_color_make(255, 0, 0))"]
+  Red,
+  [init="lv_color_to_u32(lv_color_make(0, 255, 0))"]
+  Green,
+  [init="lv_color_to_u32(lv_color_make(0, 0, 255))"]
+  Blue,
+  [init="lv_color_to_u32(lv_color_make(255, 255, 0))"]
+  Yellow
+};
+
+
+[func="lv_color_make", need_self=false]
+lv_color_t makeColor(int r, int g, int b);
+
+enum Palette {
+  [value="LV_PALETTE_RED"]
+  RED,
+  [value="LV_PALETTE_PINK"]
+  PINK,
+  [value="LV_PALETTE_PURPLE"]
+  PURPLE,
+  [value="LV_PALETTE_DEEP_PURPLE"]
+  DEEP_PURPLE,
+  [value="LV_PALETTE_INDIGO"]
+  INDIGO,
+  [value="LV_PALETTE_BLUE"]
+  BLUE,
+  [value="LV_PALETTE_LIGHT_BLUE"]
+  LIGHT_BLUE,
+  [value="LV_PALETTE_CYAN"]
+  CYAN,
+  [value="LV_PALETTE_TEAL"]
+  TEAL,
+  [value="LV_PALETTE_GREEN"]
+  GREEN,
+  [value="LV_PALETTE_LIGHT_GREEN"]
+  LIGHT_GREEN,
+  [value="LV_PALETTE_LIME"]
+  LIME,
+  [value="LV_PALETTE_YELLOW"]
+  YELLOW,
+  [value="LV_PALETTE_AMBER"]
+  AMBER,
+  [value="LV_PALETTE_ORANGE"]
+  ORANGE,
+  [value="LV_PALETTE_DEEP_ORANGE"]
+  DEEP_ORANGE,
+  [value="LV_PALETTE_BROWN"]
+  BROWN,
+  [value="LV_PALETTE_BLUE_GREY"]
+  BLUE_GREY,
+  [value="LV_PALETTE_GREY"]
+  GREY
+};
+
+[func="lv_palette_main", need_self=false]
+lv_color_t paletteMain(Palette p);
+
+[func="lv_palette_lighten", need_self=false]
+lv_color_t paletteLighten(Palette p, int lvl);
+
+[func="lv_palette_darken", need_self=false]
+lv_color_t paletteDarken(Palette p,int lvl);
+
+[func="lv_color_lighten", need_self=false]
+lv_color_t colorLighten(lv_color_t c, int lvl);
+
+[func="lv_color_darken", need_self=false]
+lv_color_t colorDarken(lv_color_t c, int lvl);
+
+
+
+enum State {
+  [value="LV_STATE_DEFAULT"]
+  DEFAULT,
+  [value="LV_STATE_CHECKED"]
+  CHECKED,
+  [value="LV_STATE_FOCUSED"]
+  FOCUSED,
+  [value="LV_STATE_FOCUS_KEY"]
+  FOCUSE_KEY,
+  [value="LV_STATE_EDITED"]
+  EDITED,
+  [value="LV_STATE_HOVERED"]
+  HOVERED,
+  [value="LV_STATE_PRESSED"]
+  PRESSED,
+  [value="LV_STATE_SCROLLED"]
+  SCROLLED,
+  [value="LV_STATE_DISABLED"]
+  DISABLED,
+  [value="LV_STATE_USER_1"]
+  USER1,
+  [value="LV_STATE_USER_2"]
+  USER2,
+  [value="LV_STATE_USER_3"]
+  USER3,
+  [value="LV_STATE_USER_4"]
+  USER4,
+  [value="LV_STATE_ANY"]
+  ANY
+};
+
+enum Flag {
+  [value="LV_OBJ_FLAG_HIDDEN"]
+  HIDDEN,
+  [value="LV_OBJ_FLAG_CLICKABLE"]
+  CLICKABLE,
+  [value="LV_OBJ_FLAG_CLICK_FOCUSABLE"]
+  CLICK_FOCUSABLE,
+  [value="LV_OBJ_FLAG_CHECKABLE"]
+  CHECKABLE,
+  [value="LV_OBJ_FLAG_SCROLLABLE"]
+  SCROLLABLE,
+  [value="LV_OBJ_FLAG_SCROLL_ELASTIC"]
+  SCROLL_ELASTIC,
+  [value="LV_OBJ_FLAG_SCROLL_MOMENTUM"]
+  SCROLL_MOMENTUM,
+  [value="LV_OBJ_FLAG_SCROLL_ONE"]
+  SCROLL_ONE,
+  [value="LV_OBJ_FLAG_SCROLL_CHAIN_HOR"]
+  SCROLL_CHAIN_HOR,
+  [value="LV_OBJ_FLAG_SCROLL_CHAIN_VER"]
+  SCROLL_CHAIN_VER,
+  [value="LV_OBJ_FLAG_SCROLL_CHAIN"]
+  SCROLL_CHAIN,
+  [value="LV_OBJ_FLAG_SCROLL_ON_FOCUS"]
+  SCROLL_ON_FOCUS,
+  [value="LV_OBJ_FLAG_SCROLL_WITH_ARROW"]
+  SCROLL_WITH_ARROW,
+  [value="LV_OBJ_FLAG_SNAPPABLE"]
+  SNAPPABLE,
+  [value="LV_OBJ_FLAG_PRESS_LOCK"]
+  PRESS_LOCK,
+  [value="LV_OBJ_FLAG_EVENT_BUBBLE"]
+  EVENT_BUBBLE,
+  [value="LV_OBJ_FLAG_GESTURE_BUBBLE"]
+  GESTURE_BUBBLE,
+  [value="LV_OBJ_FLAG_ADV_HITTEST"]
+  ADV_HITTEST,
+  [value="LV_OBJ_FLAG_IGNORE_LAYOUT"]
+  IGNORE_LAYOUT,
+  [value="LV_OBJ_FLAG_FLOATING"]
+  FLOATING,
+  [value="LV_OBJ_FLAG_OVERFLOW_VISIBLE"]
+  OVERFLOW_VISIBLE,
+
+  [value="LV_OBJ_FLAG_LAYOUT_1"]
+  LAYOUT_1,
+  [value="LV_OBJ_FLAG_LAYOUT_2"]
+  LAYOUT_2,
+
+  [value="LV_OBJ_FLAG_WIDGET_1"]
+  WIDGET_1,
+  [value="LV_OBJ_FLAG_WIDGET_2"]
+  WIDGET_2,
+  [value="LV_OBJ_FLAG_USER_1"]
+  USER_1,
+  [value="LV_OBJ_FLAG_USER_2"]
+  USER_2,
+  [value="LV_OBJ_FLAG_USER_3"]
+  USER_3,
+  [value="LV_OBJ_FLAG_USER_4"]
+  USER_4,
+};
+
+enum BlendMode {
+  [value="LV_BLEND_MODE_NORMAL"]
+  NORMAL,
+  [value="LV_BLEND_MODE_ADDITIVE"]
+  ADDITIVE,
+  [value="LV_BLEND_MODE_SUBTRACTIVE"]
+  SUBTRACTIVE,
+  [value="LV_BLEND_MODE_MULTIPLY"]
+  MULTIPLY
+};
+
+enum BaseDirection {
+  [value="LV_BASE_DIR_LTR"]
+  LTR,
+  [value="LV_BASE_DIR_RTL"]
+  RTL,
+  [value="LV_BASE_DIR_AUTO"]
+  AUTO,
+
+  [value="LV_BASE_DIR_NEUTRAL"]
+  NEUTRAL,
+  [value="LV_BASE_DIR_WEAK"]
+  WEAK
+};
+
+
+enum Part {
+  [value="LV_PART_MAIN"]
+  MAIN,
+  [value="LV_PART_SCROLLBAR"]
+  SCROLLBAR,
+  [value="LV_PART_INDICATOR"]
+  INDICATOR,
+  [value="LV_PART_KNOB"]
+  KNOB,
+  [value="LV_PART_ITEMS"]
+  ITEMS,
+  [value="LV_PART_TICKS"]
+  TICKS,
+  [value="LV_PART_CURSOR"]
+  CURSOR,
+  [value="LV_PART_CUSTOM_FIRST"]
+  CUSTOM_FIRST,
+  [value="LV_PART_ANY"]
+  ANY
+};
+
+[value="LV_OPA_TRANSP"]
+const OPA_TRANSP=0;
+[value="LV_OPA_0"]
+const OPA_0=0;
+[value="LV_OPA_10"]
+const OPA_10=25;
+[value="LV_OPA_20"]
+const OPA_20=51;
+[value="LV_OPA_30"]
+const OPA_30=76;
+[value="LV_OPA_40"]
+const OPA_40=102;
+[value="LV_OPA_50"]
+const OPA_50=127;
+[value="LV_OPA_60"]
+const OPA_60=153;
+[value="LV_OPA_70"]
+const OPA_70=178;
+[value="LV_OPA_80"]
+const OPA_80=204;
+[value="LV_OPA_90"]
+const OPA_90=229;
+[value="LV_OPA_100"]
+const OPA_100=255;
+[value="LV_OPA_COVER"]
+const OPA_COVER=255;
+
+[value="LV_GRAD_DIR_NONE"]
+const GRAD_DIR_NONE = 0;
+[value="LV_GRAD_DIR_VER"]
+const GRAD_DIR_VER = 1;
+[value="LV_GRAD_DIR_HOR"]
+const GRAD_DIR_HOR = 2;
+
+[value="LV_DITHER_NONE"]
+const DITHER_NONE = 0;
+[value="LV_DITHER_ORDERED"]
+const DITHER_ORDERED = 1;
+[value="LV_DITHER_ERR_DIFF"]
+const DITHER_ERR_DIFF = 2;
+
+enum FlexAlign {
+  [value="LV_FLEX_ALIGN_START"]
+  START,
+  [value="LV_FLEX_ALIGN_END"]
+  END,
+  [value="LV_FLEX_ALIGN_CENTER"]
+  CENTER,
+  [value="LV_FLEX_ALIGN_SPACE_EVENLY"]
+  SPACE_EVENLY,
+  [value="LV_FLEX_ALIGN_SPACE_AROUND"]
+  SPACE_AROUND,
+  [value="LV_FLEX_ALIGN_SPACE_BETWEEN"]
+  SPACE_BETWEEN
+};
+
+enum FlexFlow {
+  [value="LV_FLEX_FLOW_ROW"]
+  ROW,
+  [value="LV_FLEX_FLOW_COLUMN"]
+  COLUMN,
+  [value="LV_FLEX_FLOW_ROW_WRAP"]
+  ROW_WRAP,
+  [value="LV_FLEX_FLOW_ROW_REVERSE"]
+  ROW_REVERSE,
+  [value="LV_FLEX_FLOW_ROW_WRAP_REVERSE"]
+  ROW_WRAP_REVERSE,
+  [value="LV_FLEX_FLOW_COLUMN_WRAP"]
+  COLUMN_WRAP,
+  [value="LV_FLEX_FLOW_COLUMN_REVERSE"]
+  COLUMN_REVERSE,
+  [value="LV_FLEX_FLOW_COLUMN_WRAP_REVERSE"]
+  COLUMN_WRAP_REVERSE
+};
+
+enum GridAlign {
+  [value="LV_GRID_ALIGN_START"]
+  START,
+  [value="LV_GRID_ALIGN_CENTER"]
+  CENTER,
+  [value="LV_GRID_ALIGN_END"]
+  END,
+  [value="LV_GRID_ALIGN_STRETCH"]
+  STRETCH,
+  [value="LV_GRID_ALIGN_SPACE_EVENLY"]
+  SPACE_EVENLY,
+  [value="LV_GRID_ALIGN_SPACE_AROUND"]
+  SPACE_AROUND,
+  [value="LV_GRID_ALIGN_SPACE_BETWEEN"]
+  SPACE_BETWEEN
+};
+
+[func="lv_grid_fr", need_self=false]
+lv_coord_t gridFR(int v);
+[value="LV_GRID_TEMPLATE_LAST"]
+const GRID_TEMPLATE_LAST = 0;
+
+[value="LV_LAYOUT_GRID"]
+property int LV_LAYOUT_GRID readonly;
+[value="LV_LAYOUT_FLEX"]
+property int LV_LAYOUT_FLEX readonly;
+
+enum BorderSide {
+  [value="LV_BORDER_SIDE_NONE"]
+  NONE,
+  [value="LV_BORDER_SIDE_BOTTOM"]
+  BOTTOM,
+  [value="LV_BORDER_SIDE_TOP"]
+  TOP,
+  [value="LV_BORDER_SIDE_LEFT"]
+  LEFT,
+  [value="LV_BORDER_SIDE_RIGHT"]
+  RIGHT,
+  [value="LV_BORDER_SIDE_FULL"]
+  FULL,
+  [value="LV_BORDER_SIDE_INTERNAL"]
+  INTERNAL
+};
+
+enum TextDecor {
+  [value="LV_TEXT_DECOR_NONE"]
+  NONE,
+  [value="LV_TEXT_DECOR_UNDERLINE"]
+  UNDERLINE,
+  [value="LV_TEXT_DECOR_STRIKETHROUGH"]
+  STRIKETHROUGH
+};
+
+[value="(int64_t)&lv_font_montserrat_8"]
+property lv_font_p font_montserrat_8 readonly;
+[value="(int64_t)&lv_font_montserrat_10"]
+property lv_font_p font_montserrat_10 readonly;
+[value="(int64_t)&lv_font_montserrat_12"]
+property lv_font_p font_montserrat_12 readonly;
+[value="(int64_t)&lv_font_montserrat_14"]
+property lv_font_p font_montserrat_14 readonly;
+[value="(int64_t)&lv_font_montserrat_18"]
+property lv_font_p font_montserrat_18 readonly;
+
+
+[
+  native_type="lv_style_t*",
+  from_native="from_style",
+  to_native="to_style",
+  finalizer="finalize_style",
+  create="create_style",
+  tag="style"
+]
+interface Style {
+
+  [set="lv_style_set_width"]
+  property int width writeonly;
+  [set="lv_style_set_min_width"]
+  property int minWidth writeonly;
+  [set="lv_style_set_max_width"]
+  property int maxWidth writeonly;
+
+  [set="lv_style_set_height"]
+  property int height writeonly;
+  [set="lv_style_set_min_height"]
+  property int minHeight writeonly;
+  [set="lv_style_set_max_height"]
+  property int maxHeight writeonly;
+
+  [set="lv_style_set_x"]
+  property int x writeonly;
+
+  [set="lv_style_set_y"]
+  property int y writeonly;
+
+  [set="lv_style_set_align"]
+  property Align align writeonly;
+
+  [set="lv_style_set_transform_width"]
+  property int transformWidth writeonly;
+  [set="lv_style_set_transform_height"]
+  property int transformHeight writeonly;
+  [set="lv_style_set_translate_x"]
+  property int translateX writeonly;
+  [set="lv_style_set_translate_y"]
+  property int translateY writeonly;
+  [set="lv_style_set_transform_zoom"]
+  property int transformZoom writeonly;
+  [set="lv_style_set_transform_angle"]
+  property int transformAngle writeonly;
+  [set="lv_style_set_transform_pivot_x"]
+  property int transformPivotX writeonly;
+  [set="lv_style_set_transform_pivot_y"]
+  property int transformPivotY writeonly;
+
+  [set="lv_style_set_pad_top"]
+  property int padTop writeonly;
+  [set="lv_style_set_pad_bottom"]
+  property int padBottom writeonly;
+  [set="lv_style_set_pad_left"]
+  property int padLeft writeonly;
+  [set="lv_style_set_pad_right"]
+  property int padRight writeonly;
+  [set="lv_style_set_pad_all"]
+  property int padding writeonly;
+  [set="lv_style_set_pad_row"]
+  property int padRow writeonly;
+  [set="lv_style_set_pad_column"]
+  property int padColumn writeonly;
+
+  [set="lv_style_set_anim_time"]
+  property int animateTime writeonly;
+
+  /*
+  [set="lv_style_set_margin_top"]
+  property int marginTop writeonly;
+  [set="lv_style_set_margin_bottom"]
+  property int marginBottom writeonly;
+  [set="lv_style_set_margin_left"]
+  property int marginLeft writeonly;
+  [set="lv_style_set_margin_right"]
+  property int marginRight writeonly;
+  */
+
+  [set="lv_style_set_bg_color"]
+  property lv_color_t bgColor writeonly;
+  [set="lv_style_set_bg_opa"]
+  property int bgOPA writeonly;
+  [set="lv_style_set_bg_grad_color"]
+  property lv_color_t bgGardColor writeonly;
+  [set="lv_style_set_bg_grad_dir"]
+  property int bgGradDir writeonly;
+  [set="lv_style_set_bg_main_stop"]
+  property int bgMainStop writeonly;
+  [set="lv_style_set_bg_grad_stop"]
+  property int bgGradStop writeonly;
+  //[set="lv_style_set_bg_grad"]
+  //property grad grad writeonly;
+  [set="lv_style_set_bg_dither_mode"]
+  property int bgDitherMode writeonly;
+
+  [set="lv_style_set_bg_image_src"]
+  property string bgImageSrc writeonly;
+  [set="lv_style_set_bg_image_opa"]
+  property int bgImageOPA writeonly;
+  [set="lv_style_set_bg_image_recolor"]
+  property lv_color_t bgImageRecolor writeonly;
+  [set="lv_style_set_bg_image_recolor_opa"]
+  property int bgImageRecolorOPA writeonly;
+  [set="lv_style_set_bg_image_tiled"]
+  property boolean bgImageTitle writeonly;
+
+
+  [set="lv_style_set_border_color"]
+  property lv_color_t borderColor writeonly;
+  [set="lv_style_set_border_opa"]
+  property int borderOPA writeonly;
+  [set="lv_style_set_border_width"]
+  property int borderWidth writeonly;
+  [set="lv_style_set_border_side"]
+  property BorderSide borderSide writeonly;
+  [set="lv_style_set_border_post"]
+  property boolean borderPost writeonly;
+  [set="lv_style_set_outline_width"]
+  property int outlineWidth writeonly;
+  [set="lv_style_set_outline_color"]
+  property lv_color_t outlineColor writeonly;
+  [set="lv_style_set_outline_opa"]
+  property int outlineOPA writeonly;
+  [set="lv_style_set_outline_pad"]
+  property int outlinePad writeonly;
+  [set="lv_style_set_shadow_width"]
+  property int shadowWidth writeonly;
+  [set="lv_style_set_shadow_ofs_x"]
+  property int shadowOFSX writeonly;
+  [set="lv_style_set_shadow_ofs_y"]
+  property int shadowOFSY writeonly;
+  [set="lv_style_set_shadow_color"]
+  property lv_color_t shadowColor writeonly;
+  [set="lv_style_set_shadow_spread"]
+  property int shadowSpread writeonly;
+  [set="lv_style_set_shadow_opa"]
+  property int shadowOPA writeonly;
+
+  [set="lv_style_set_image_opa"]
+  property int imageOPA writeonly;
+  [set="lv_style_set_image_recolor"]
+  property lv_color_t imageRecolor writeonly;
+  [set="lv_style_set_image_recolor_opa"]
+  property int imageRecolorOPA writeonly;
+
+  [set="lv_style_set_line_width"]
+  property int lineWidth writeonly;
+  [set="lv_style_set_line_dash_width"]
+  property int lineDashGap writeonly;
+  [set="lv_style_set_line_rounded"]
+  property boolean lineRounded writeonly;
+  [set="lv_style_set_line_color"]
+  property lv_color_t lineColor writeonly;
+  [set="lv_style_set_line_opa"]
+  property int lineOPA writeonly;
+
+  [set="lv_style_set_arc_width"]
+  property int arcWidth writeonly;
+  [set="lv_style_set_arc_rounded"]
+  property boolean arcRounded writeonly;
+  [set="lv_style_set_arc_color"]
+  property lv_color_t arcColor writeonly;
+  [set="lv_style_set_arc_opa"]
+  property int arcOPA writeonly;
+  [set="lv_style_set_arc_image_src"]
+  property string arcImageSrc writeonly;
+
+  [set="lv_style_set_text_color"]
+  property lv_color_t textColor writeonly;
+  [set="lv_style_set_text_opa"]
+  property int textOPA writeonly;
+  [set="lv_style_set_text_font"]
+  property lv_font_p textFont writeonly;
+  [set="lv_style_set_text_letter_space"]
+  property int textLetterSpace writeonly;
+  [set="lv_style_set_text_line_space"]
+  property int textLineSpace writeonly;
+  [set="lv_style_set_text_decor"]
+  property TextDecor textDecor writeonly;
+  [set="lv_style_set_text_align"]
+  property TextAlign textAlign writeonly;
+
+  [set="lv_style_set_radius"]
+  property int radius writeonly;
+
+  [set="lv_style_set_clip_corner"]
+  property boolean clipCorner writeonly;
+
+  [set="lv_style_set_opa"]
+  property int OPA writeonly;
+
+  [set="lv_style_set_color_filter_opa"]
+  property int colorFilterOPA writeonly;
+
+  [set="lv_style_set_blend_mode"]
+  property BlendMode blendMode writeonly;
+
+  [set="lv_style_set_layout"]
+  property int layout writeonly;
+
+  [set="lv_style_set_base_dir"]
+  property BaseDirection baseDirection writeonly;
+
+  // flex style
+  [set="lv_style_set_flex_flow"]
+  property FlexFlow flexFlow writeonly;
+  [set="lv_style_set_flex_main_place"]
+  property FlexAlign flexMainAlign writeonly;
+  [set="lv_style_set_flex_cross_place"]
+  property FlexAlign flexCrossAlign writeonly;
+  [set="lv_style_set_flex_track_place"]
+  property FlexAlign flexTrackAlign writeonly;
+  [set="lv_style_set_flex_grow"]
+  property int flexGrow writeonly;
+
+
+  property int[] gridRows writeonly;
+  property int[] gridColumns writeonly;
+
+  [set="lv_style_set_grid_row_align"]
+  property GridAlign gridRowAlign writeonly;
+  [set="lv_style_set_grid_column_align"]
+  property GridAlign gridColumnAlgin writeonly;
+  [set="lv_style_set_grid_cell_column_pos"]
+  property int gridColumnPos writeonly;
+  [set="lv_style_set_grid_cell_column_span"]
+  property int gridColumnSpan writeonly;
+  [set="lv_style_set_grid_cell_row_pos"]
+  property int gridRowPos writeonly;
+  [set="lv_style_set_grid_cell_row_span"]
+  property int gridRowSpan writeonly;
+  [set="lv_style_set_grid_cell_x_align"]
+  property int gridCellXAlign writeonly;
+  [set="lv_style_set_grid_cell_y_align"]
+  property int gridCellYAlign writeonly;
+};
+
+Style createStyle(object style_data);
+
+[value="LV_RADIUS_CIRCLE"]
+const RADIUS_CIRCLE = 0;
+
+[tag="inline-style"]
+interface LocalStyle {
+
+  [func="lv_obj_set_style_width"]
+  void width(int value, uint selector);
+  [func="lv_obj_set_style_min_width"]
+  void minWidth(int value, uint selector);
+  [func="lv_obj_set_style_max_width"]
+  void maxWidth(int value, uint selector);
+
+  [func="lv_obj_set_style_height"]
+  void height(int value, uint selector);
+  [func="lv_obj_set_style_min_height"]
+  void minHeight(int value, uint selector);
+  [func="lv_obj_set_style_max_height"]
+  void maxHeight(int value, uint selector);
+
+  [func="lv_obj_set_style_x"]
+  void x(int value, uint selector);
+  [func="lv_obj_set_style_y"]
+  void y(int value, uint selector);
+
+  [func="lv_obj_set_style_align"]
+  void align(Align value, uint selector);
+
+  [func="lv_obj_set_style_bg_color"]
+  void bgColor(lv_color_t value, uint selector);
+
+  [func="lv_obj_set_style_bg_opa"]
+  void bgOPA(int value, uint selector);
+
+  [func="lv_obj_set_style_bg_grad_dir"]
+  void gradiantDir(int value, uint selector);
+
+  [func="lv_obj_set_style_bg_main_stop"]
+  void bgMainStop(int value, uint selector);
+
+  [func="lv_obj_set_style_bg_grad_stop"]
+  void bgGradiantStop(int value, uint selector);
+
+  [func="lv_obj_set_style_bg_grad"]
+  void bgGradiant(int value, uint selector);
+
+  [func="lv_obj_set_style_bg_dither_mode"]
+  void bgDitherMode(int value, uint selector);
+
+  [func="lv_obj_set_style_bg_image_src"]
+  void bgImageSrc(string value, uint selector);
+
+  [func="lv_obj_set_style_bg_image_opa"]
+  void bgImageOPA(int value, uint selector);
+
+  [func="lv_obj_set_style_bg_image_recolor"]
+  void bgImageRecolor(lv_color_t value, uint selector);
+
+  [func="lv_obj_set_style_bg_image_recolor_opa"]
+  void bgImageRecolorOPA(int value, uint selector);
+
+  [func="lv_obj_set_style_bg_image_tiled"]
+  void bgImageTitle(boolean value, uint selector);
+
+  [func="lv_obj_set_style_border_color"]
+  void borderColor(lv_color_t value, uint selector);
+
+  [func="lv_obj_set_style_border_opa"]
+  void borderOPA(int value, uint selector);
+
+  [func="lv_obj_set_style_border_width"]
+  void borderWidth(int value, uint selector);
+
+  [func="lv_obj_set_style_border_side"]
+  void borderSide(BorderSide value, uint selector);
+
+  [func="lv_obj_set_style_border_post"]
+  void borderPost(boolean value, uint selector);
+
+  [func="lv_obj_set_style_outline_width"]
+  void outlineWidth(int value, uint selector);
+
+  [func="lv_obj_set_style_outline_color"]
+  void outlineColor(lv_color_t value, uint selector);
+
+  [func="lv_obj_set_style_outline_opa"]
+  void outlineOPA(int value, uint selector);
+
+  [func="lv_obj_set_style_outline_pad"]
+  void outlinePadding(int value, uint selector);
+
+  [func="lv_obj_set_style_radius"]
+  void radius(int value, uint selector);
+
+  [func="lv_obj_set_style_transform_width"]
+  void transformWidth(int value, uint selector);
+  [func="lv_obj_set_style_transform_height"]
+  void transformHeight(int value, uint selector);
+  [func="lv_obj_set_style_translate_x"]
+  void translateX(int value, uint selector);
+  [func="lv_obj_set_style_translate_y"]
+  void translateY(int value, uint selecotr);
+  [func="lv_obj_set_style_transform_zoom"]
+  void transformZoom(int value, uint selector);
+  [func="lv_obj_set_style_transform_angle"]
+  void transformAngle(int value, uint selector);
+  [func="lv_obj_set_style_transform_pivot_x"]
+  void transformPivotX(int value, uint selector);
+  [func="lv_obj_set_style_transform_pivot_y"]
+  void transformPivotY(int value, uint selector);
+  [func="lv_obj_set_style_pad_top"]
+  void paddintTop(int value, uint selector);
+  [func="lv_obj_set_style_pad_bottom"]
+  void paddingBottom(int value, uint selector);
+  [func="lv_obj_set_style_pad_left"]
+  void paddingLeft(int value, uint selector);
+  [func="lv_obj_set_style_pad_right"]
+  void paddingRight(int value, uint selector);
+  [func="lv_obj_set_style_pad_row"]
+  void paddingRow(int value, uint selector);
+  [func="lv_obj_set_style_pad_column"]
+  void paddingColumn(int value, uint selector);
+  [func="lv_obj_set_style_pad_all"]
+  void padding(int value, uint selector);
+
+  /*[func="lv_obj_set_style_margin_top"]
+  void marginTop(int value, uint selector);
+  [func="lv_obj_set_style_margin_bottom"]
+  void marginBottom(int value, uint selector);
+  [func="lv_obj_set_style_margin_right"]
+  void marginRight(int value, uint selector);
+  [func="lv_obj_set_style_margin_left"]
+  void marginLeft(int value, uint selector);*/
+
+  [func="lv_obj_set_style_shadow_width"]
+  void shadowWidth(int value, uint selector);
+  [func="lv_obj_set_style_shadow_ofs_x"]
+  void shadowOffsetX(int value, uint selector);
+  [func="lv_obj_set_style_shadow_ofs_y"]
+  void shadowOffsetY(int value, uint selector);
+  [func="lv_obj_set_style_shadow_spread"]
+  void shadowSpreed(int vlaue, uint selector);
+  [func="lv_obj_set_style_shadow_color"]
+  void shadowColor(lv_color_t value, uint selector);
+  [func="lv_obj_set_style_shadow_opa"]
+  void shadowOPA(int value, uint selector);
+  [func="lv_obj_set_style_image_opa"]
+  void imageOPA(int value, uint selector);
+  [func="lv_obj_set_style_image_recolor"]
+  void imageRecolor(lv_color_t value, uint selector);
+  [func="lv_obj_set_style_image_recolor_opa"]
+  void imageRecolorOPA(int value, uint selector);
+
+  [func="lv_obj_set_style_line_width"]
+  void lineWidth(int value, uint selector);
+  [func="lv_obj_set_style_line_dash_width"]
+  void lineDashWidth(int value, uint selector);
+  [func="lv_obj_set_style_line_dash_gap"]
+  void lineDashGap(int value, uint selector);
+  [func="lv_obj_set_style_line_rounded"]
+  void lineRounded(boolean value, uint selector);
+  [func="lv_obj_set_style_line_color"]
+  void lineColor(lv_color_t value, uint selector);
+  [func="lv_obj_set_style_line_opa"]
+  void lineOPA(int value, uint selector);
+
+  [func="lv_obj_set_style_arc_width"]
+  void arcWidth(int value, uint selector);
+  [func="lv_obj_set_style_arc_rounded"]
+  void arcRounded(boolean value, uint selector);
+  [func="lv_obj_set_style_arc_color"]
+  void arcColor(lv_color_t value, uint selector);
+  [func="lv_obj_set_style_arc_opa"]
+  void arcOPA(int value, uint selector);
+  [func="lv_obj_set_style_arc_image_src"]
+  void arcImageSrc(string value, uint selector);
+
+  [func="lv_obj_set_style_text_color"]
+  void textColor(lv_color_t value, uint selector);
+
+  [func="lv_obj_set_style_text_opa"]
+  void textOPA(int value, uint selector);
+
+  //[func="lv_obj_set_style_text_font"]
+  //void textFont(Font font, uint selector);
+
+  [func="lv_obj_set_style_text_letter_space"]
+  void textLetterSpace(int value, uint selector);
+  [func="lv_obj_set_style_text_line_space"]
+  void textLineSpace(int value, uint selector);
+  [func="lv_obj_set_style_text_decor"]
+  void textDecor(TextDecor value, uint selector);
+  [func="lv_obj_set_style_text_align"]
+  void textAlign(TextDecor value, uint selector);
+  [func="lv_obj_set_style_clip_corner"]
+  void clipCorner(boolean value, uint selector);
+  [func="lv_obj_set_style_opa"]
+  void opa(int value, uint selector);
+  [func="lv_obj_set_style_anim"]
+  void animate(Animation value, uint selector);
+  [func="lv_obj_set_style_anim_time"]
+  void animateTime(uint value, uint selector);
+  [func="lv_obj_set_style_anim_speed"]
+  void animateSpeed(uint value, uint selector);
+  [func="lv_obj_set_style_blend_mode"]
+  void blendMode(BlendMode value, uint selector);
+  [func="lv_obj_set_style_layout"]
+  void layout(int value, uint selector);
+  [func="lv_obj_set_style_base_dir"]
+  void baseDirection(BaseDirection value, uint selector);
+
+  [func="lv_obj_set_style_flex_flow"]
+  void flexFlow(FlexFlow value, uint selector);
+  [func="lv_obj_set_style_flex_main_place"]
+  void flexMainAlign(FlexAlign value, uint selector);
+  [func="lv_obj_set_style_flex_cross_place"]
+  void flexCrossAlign(FlexAlign value, uint selector);
+  [func="lv_obj_set_style_flex_track_place"]
+  void flexTrackAlign(FlexAlign value, uint selector);
+  [func="lv_obj_set_style_flex_grow"]
+  void flexGrow(int value, uint selector);
+
+  void gridRows(int[] value, uint selector);
+  void gridColumns(int[] value, uint selector);
+  [func="lv_obj_set_style_grid_row_align"]
+  void gridRowAlign(GridAlign value, uint selector);
+  [func="lv_obj_set_style_grid_column_align"]
+  void gridColumnAlgin(GridAlign value, uint selector);
+  [func="lv_obj_set_style_grid_cell_column_pos"]
+  void gridColumnPos(int value, uint selector);
+  [func="lv_obj_set_style_grid_cell_column_span"]
+  void gridColumnSpan(int value, uint selector);
+  [func="lv_obj_set_style_grid_cell_row_pos"]
+  void gridRowPos(int value, uint selector);
+  [func="lv_obj_set_style_grid_cell_row_span"]
+  void gridRowSpan(int value, uint selector);
+  [func="lv_obj_set_style_grid_cell_x_align"]
+  void gridCellXAlign(int value, uint selector);
+  [func="lv_obj_set_style_grid_cell_y_align"]
+  void gridCellYAlign(int value, uint selector);
+};
+
+callback anim_cb();
+
+[value="LV_ANIM_REPEAT_INFINITE"]
+const ANIM_REPEAT_INFINITE = 65535;
+[value="LV_ANIM_PLAYTIME_INFINITE"]
+const ANIM_PLAYTIME_INFINITE = 1;
+
+[
+  native_type="lv_anim_t*",
+  tag="animation",
+  from_native="jsvalue_from_anim",
+  to_native="jsvalue_to_anim"
+]
+interface Animation {
+  [rawset="NativeAnimateSetExecCb"]
+  property anim_cb onExec writeonly;
+  [rawset="NativeAnimateSetPathCb"]
+  property anim_cb onPath writeonly;
+  [rawset="NativeAnimateSetStartCb"]
+  property anim_cb onStart writeonly;
+  [rawset="NativeAnimateSetGetValueCb"]
+  property anim_cb onGetValue writeonly;
+  [rawset="NativeAnimateSetReadyCb"]
+  property anim_cb onReady writeonly;
+  [set="lv_anim_set_delay", get="lv_anim_get_delay"]
+  property int delay;
+  [func="lv_anim_set_values", param_pack=true, name="values"]
+  void setValues(int start, int end);
+  [set="lv_anim_set_time", get="native_anim_get_time"]
+  property int time;
+  [set="lv_anim_set_playback_time", get="lv_anim_get_playtime"]
+  property int playbackTime;
+  [set="lv_anim_set_playback_delay"]
+  property int playbackDelay writeonly;
+  [set="lv_anim_set_repeat_count"]
+  property int repeatCount writeonly;
+  [set="lv_anim_set_repeat_delay"]
+  property int repeatDelay writeonly;
+  [set="lv_anim_set_early_apply"]
+  property boolean earlyApply writeonly;
+  [func="NativeAnimateStart"]
+  void start();
+
+  [set="native_anim_set_start_value", get="native_anim_get_start_value"]
+  property int startValue;
+  [set="native_anim_set_end_value", get="native_anim_get_end_value"]
+  property int endValue;
+  [set="native_anim_set_current_value", get="native_anim_get_current_value"]
+  property int currentValue;
+};
+
+[rawfunc="NativeAnimateCreateFrom"]
+Animation createAnimation(object params);
+
+[func="lv_anim_count_running", need_self=false]
+int getAnimCountRunning();
+[func="lv_anim_speed_to_time", need_self=false]
+int animSpeedToTime(uint speed, int start, int end);
+[func="lv_anim_refr_now", need_self=false]
+void animRefreshNow();
+
+[value="(uintptr_t)&lv_anim_path_linear"]
+property ulong ANIM_PATH_LINEAR readonly;
+[value="(uintptr_t)&lv_anim_path_ease_in"]
+property ulong ANIM_PATH_EASE_IN readonly;
+[value="(uintptr_t)&lv_anim_path_ease_out"]
+property ulong ANIM_PATH_EASE_OUT readonly;
+[value="(uintptr_t)&lv_anim_path_ease_in_out"]
+property ulong ANIM_PATH_EASE_IN_OUT readonly;
+[value="(uintptr_t)&lv_anim_path_overshoot"]
+property ulong ANIM_PATH_OVERSHOOT readonly;
+[value="(uintptr_t)&lv_anim_path_bounce"]
+property ulong ANIM_PATH_BOUNCE readonly;
+[value="(uintptr_t)&lv_anim_path_step"]
+property ulong ANIM_PATH_PATH_STEP readonly;
+
+[value="LV_SYMBOL_BULLET"]
+const SYMBOL_BULLET="";
+[value="LV_SYMBOL_AUDIO"]
+const SYMBOL_AUDIO="";
+[value="LV_SYMBOL_VIDEO"]
+const SYMBOL_VIDEO="";
+[value="LV_SYMBOL_LIST"]
+const SYMBOL_LIST="";
+[value="LV_SYMBOL_OK"]
+const SYMBOL_OK="";
+[value="LV_SYMBOL_CLOSE"]
+const SYMBOL_CLOSE="";
+[value="LV_SYMBOL_POWER"]
+const SYMBOL_POWER="";
+[value="LV_SYMBOL_SETTINGS"]
+const SYMBOL_SETTINGS="";
+[value="LV_SYMBOL_HOME"]
+const SYMBOL_HOME="";
+[value="LV_SYMBOL_DOWNLOAD"]
+const SYMBOL_DOWNLOAD="";
+[value="LV_SYMBOL_DRIVE"]
+const SYMBOL_DRIVE="";
+[value="LV_SYMBOL_REFRESH"]
+const SYMBOL_REFRESH="";
+[value="LV_SYMBOL_MUTE"]
+const SYMBOL_MUTE="";
+[value="LV_SYMBOL_VOLUME_MID"]
+const SYMBOL_VOLUME_MID="";
+[value="LV_SYMBOL_VOLUME_MAX"]
+const SYMBOL_VOLUME_MAX="";
+[value="LV_SYMBOL_IMAGE"]
+const SYMBOL_IMAGE="";
+[value="LV_SYMBOL_TINT"]
+const SYMBOL_TINT="";
+[value="LV_SYMBOL_PREV"]
+const SYMBOL_PREV="";
+[value="LV_SYMBOL_PLAY"]
+const SYMBOL_PLAY="";
+[value="LV_SYMBOL_PAUSE"]
+const SYMBOL_PAUSE="";
+[value="LV_SYMBOL_STOP"]
+const SYMBOL_STOP="";
+[value="LV_SYMBOL_NEXT"]
+const SYMBOL_NEXT="";
+[value="LV_SYMBOL_EJECT"]
+const SYMBOL_EJECT="";
+[value="LV_SYMBOL_LEFT"]
+const SYMBOL_LEFT="";
+[value="LV_SYMBOL_RIGHT"]
+const SYMBOL_RIGHT="";
+[value="LV_SYMBOL_PLUS"]
+const SYMBOL_PLUS="";
+[value="LV_SYMBOL_MINUS"]
+const SYMBOL_MINUS="";
+[value="LV_SYMBOL_EYE_OPEN"]
+const SYMBOL_EYE_OPEN="";
+[value="LV_SYMBOL_EYE_CLOSE"]
+const SYMBOL_EYE_CLOSE="";
+[value="LV_SYMBOL_WARNING"]
+const SYMBOL_WARNING="";
+[value="LV_SYMBOL_SHUFFLE"]
+const SYMBOL_SHUFFLE="";
+[value="LV_SYMBOL_UP"]
+const SYMBOL_UP="";
+[value="LV_SYMBOL_DOWN"]
+const SYMBOL_DOWN="";
+[value="LV_SYMBOL_LOOP"]
+const SYMBOL_LOOP="";
+[value="LV_SYMBOL_DIRECTORY"]
+const SYMBOL_DIRECTORY="";
+[value="LV_SYMBOL_UPLOAD"]
+const SYMBOL_UPLOAD="";
+[value="LV_SYMBOL_CALL"]
+const SYMBOL_CALL="";
+[value="LV_SYMBOL_CUT"]
+const SYMBOL_CUT="";
+[value="LV_SYMBOL_COPY"]
+const SYMBOL_COPY="";
+[value="LV_SYMBOL_SAVE"]
+const SYMBOL_SAVE="";
+[value="LV_SYMBOL_BARS"]
+const SYMBOL_BARS="";
+[value="LV_SYMBOL_ENVELOPE"]
+const SYMBOL_ENVELOPE="";
+[value="LV_SYMBOL_CHARGE"]
+const SYMBOL_CHARGE="";
+[value="LV_SYMBOL_PASTE"]
+const SYMBOL_PASTE="";
+[value="LV_SYMBOL_BELL"]
+const SYMBOL_BELL="";
+[value="LV_SYMBOL_KEYBOARD"]
+const SYMBOL_KEYBOARD="";
+[value="LV_SYMBOL_GPS"]
+const SYMBOL_GPS="";
+[value="LV_SYMBOL_FILE"]
+const SYMBOL_FILE="";
+[value="LV_SYMBOL_WIFI"]
+const SYMBOL_WIFI="";
+[value="LV_SYMBOL_BATTERY_FULL"]
+const SYMBOL_BATTERY_FULL="";
+[value="LV_SYMBOL_BATTERY_3"]
+const SYMBOL_BATTERY_3="";
+[value="LV_SYMBOL_BATTERY_2"]
+const SYMBOL_BATTERY_2="";
+[value="LV_SYMBOL_BATTERY_1"]
+const SYMBOL_BATTERY_1="";
+[value="LV_SYMBOL_BATTERY_EMPTY"]
+const SYMBOL_BATTERY_EMPTY="";
+[value="LV_SYMBOL_USB"]
+const SYMBOL_USB="";
+[value="LV_SYMBOL_BLUETOOTH"]
+const SYMBOL_BLUETOOTH="";
+[value="LV_SYMBOL_TRASH"]
+const SYMBOL_TRASH="";
+[value="LV_SYMBOL_EDIT"]
+const SYMBOL_EDIT="";
+[value="LV_SYMBOL_BACKSPACE"]
+const SYMBOL_BACKSPACE="";
+[value="LV_SYMBOL_SD_CARD"]
+const SYMBOL_SD_CARD="";
+[value="LV_SYMBOL_NEW_LINE"]
+const SYMBOL_NEW_LINE="";
+[value="LV_SYMBOL_DUMMY"]
+const SYMBOL_DUMMY="";
+
+
+[native_type="lv_event_t*"]
+interface WidgetEvent {
+  [get="lv_event_get_code"]
+  property int code readonly;
+
+  [get="lv_event_get_target"]
+  property Widget target readonly;
+
+  [get="lv_event_get_current_target"]
+  property Widget current_target readonly;
+};
+
+callback event_cb(WidgetEvent evt);
+
+[
+  from_native="from_widget",
+  to_native="to_widget",
+  native_type="lv_obj_t*",
+  finalizer="finalize_widget",
+  need_parent=true,
+  native_class="lv_obj_class",
+  tag="widget",
+  create="lv_obj_create"
+]
+interface Widget extends LocalStyle{
+  [set="lv_obj_set_id", get="lv_obj_get_id"]
+  property string id;
+
+  [set="lv_obj_set_x", get="lv_obj_get_x"]
+  property int x;
+  [set="lv_obj_set_y", get="lv_obj_get_y"]
+  property int y;
+  [set="lv_obj_set_width", get="lv_obj_get_width"]
+  property int width;
+  [set="lv_obj_set_height", get="lv_obj_get_height"]
+  property int height;
+  [set="lv_obj_set_content_width", get="lv_obj_get_content_width"]
+  property int contentWidth;
+  [set="lv_obj_set_content_height", get="lv_obj_get_content_height"]
+  property int contentHeight;
+
+  [set="lv_obj_set_align"]
+  property Align align writeonly;
+
+  [func="lv_obj_align", param_pack=true, name="alignOffset"]
+  void setAlignOffset(Align align, int x, int y);
+
+  [func="lv_obj_set_pos"]
+  void setPos(int x, int y);
+  [func="lv_obj_set_size"]
+  void setSize(int width, int height);
+  [func="lv_obj_set_layout"]
+  void setLayout(int layout);
+
+  [func="lv_obj_get_child"]
+  Widget getChild(int id);
+
+  [param_pack="true", name="style"]
+  void addStyle(object style, uint selector);
+
+  [param_pack="true", name="inlineStyle"]
+  void setStyle(object style);
+
+  [func="lv_obj_remove_style_all"]
+  void removeAllStyle();
+  [func="lv_obj_remove_style"]
+  void removeStyle(Style style, uint selector);
+
+
+  [func="lv_obj_add_flag"]
+  void addFlag(Flag flag);
+  [func="lv_obj_clear_flag"]
+  void clearFlag(Flag flag);
+  [func="lv_obj_has_flag"]
+  boolean hasFlag(Flag flag);
+  [func="lv_obj_has_flag_any"]
+  boolean hasFlagAny(Flag flags);
+
+  [func="lv_obj_add_state"]
+  void addState(State state);
+  [func="lv_obj_clear_state"]
+  void clearState(State state);
+  [get="lv_obj_get_state"]
+  property State state readonly;
+  [func="lv_obj_has_state"]
+  boolean hasState(State state);
+
+  [get="lv_obj_is_valid"]
+  property boolean valid readonly;
+
+
+  [set="lv_obj_set_flex_flow"]
+  property FlexFlow flexFlow writeonly;
+
+  [func="lv_obj_set_flex_align", param_pack=true, name="flexAlgin"]
+  void setFlexAlign(FlexAlign main, FlexAlign cross, FlexAlign track_cross);
+
+  [set="lv_obj_set_flex_grow"]
+  property int flexGrow writeonly;
+
+  [func="lv_obj_get_style_width"]
+  lv_coord_t getStyleWidth(uint part);
+  [func="lv_obj_get_style_min_width"]
+  lv_coord_t getStyleMinWidth(uint part);
+  [func="lv_obj_get_style_max_width"]
+  lv_coord_t getStyleMaxWidth(uint part);
+  [func="lv_obj_get_style_height"]
+  lv_coord_t getStyleHeight(uint part);
+  [func="lv_obj_get_style_min_height"]
+  lv_coord_t getStyleMinHeight(uint part);
+  [func="lv_obj_get_style_max_height"]
+  lv_coord_t getStyleMaxHeight(uint part);
+  [func="lv_obj_get_style_x"]
+  lv_coord_t getStyleX(uint part);
+  [func="lv_obj_get_style_y"]
+  lv_coord_t getStyleY(uint part);
+  [func="lv_obj_get_style_align"]
+  Align getStyleAlign(uint part);
+  [func="lv_obj_get_style_transform_width"]
+  lv_coord_t getStyleTransformWidth(uint part);
+  [func="lv_obj_get_style_transform_height"]
+  lv_coord_t getStyleTransformHeight(uint part);
+  [func="lv_obj_get_style_translate_x"]
+  lv_coord_t getStyleTranslateX(uint part);
+  [func="lv_obj_get_style_translate_y"]
+  lv_coord_t getStyleTranslateY(uint part);
+  [func="lv_obj_get_style_transform_angle"]
+  lv_coord_t getStyleTransformAngle(uint part);
+  [func="lv_obj_get_style_transform_pivot_x"]
+  lv_coord_t getStyleTransformPivotX(uint part);
+  [func="lv_obj_get_style_transform_pivot_y"]
+  lv_coord_t getStyleTransformPivotY(uint part);
+  [func="lv_obj_get_style_pad_top"]
+  lv_coord_t getStylePaddingTop(uint part);
+  [func="lv_obj_get_style_pad_bottom"]
+  lv_coord_t getStylePaddingBottom(uint part);
+  [func="lv_obj_get_style_pad_left"]
+  lv_coord_t getStylePaddingLeft(uint part);
+  [func="lv_obj_get_style_pad_right"]
+  lv_coord_t getStylePaddingRight(uint part);
+  [func="lv_obj_get_style_pad_row"]
+  lv_coord_t getStylePaddingRow(uint part);
+  [func="lv_obj_get_style_pad_column"]
+  lv_coord_t getStylePaddingColumn(uint part);
+  //[func="lv_obj_get_style_margin_top"]
+  //lv_coord_t getStyleMarginTop(uint part)
+  //[func="lv_obj_get_style_margin_bottom"]
+  //lv_coord_t getStyleMarginBottom(uint part)
+  //[func="lv_obj_get_style_margin_left"]
+  //lv_coord_t getStyleMarginLeft(uint part)
+  //[func="lv_obj_get_style_margin_right"]
+  //lv_coord_t getStyleMarginRight(uint part)
+  [func="lv_obj_get_style_bg_color"]
+  lv_color_t getStyleBgColor(uint part);
+  [func="lv_obj_get_style_bg_color_filtered"]
+  lv_color_t getStyleBgColorFiltered(uint part);
+  [func="lv_obj_get_style_bg_opa"]
+  int getStyleBgOPA(uint part);
+  [func="lv_obj_get_style_bg_grad_color"]
+  lv_color_t getStyleBgGradColor(uint part);
+  [func="lv_obj_get_style_bg_grad_color_filtered"]
+  lv_color_t getStyleBgGradColorFiltered(uint part);
+  [func="lv_obj_get_style_bg_grad_dir"]
+  int getStyleBgGradDir(uint part);
+  [func="lv_obj_get_style_bg_main_stop"]
+  lv_coord_t getStyleBgMainStop(uint part);
+  [func="lv_obj_get_style_bg_grad_stop"]
+  lv_coord_t getStyleBgGradStop(uint part);
+  //[func="lv_obj_get_style_bg_grad"]
+  //const lv_grad_dsc_t * get_bg_grad(uint part)
+  [func="lv_obj_get_style_bg_dither_mode"]
+  int getStyleBgDitherMode(uint part);
+  [func="lv_obj_get_style_bg_image_src"]
+  string getStyleBgImgSrc(uint part);
+  [func="lv_obj_get_style_bg_image_opa"]
+  int getStyleBgImgOPA(uint part);
+  [func="lv_obj_get_style_bg_image_recolor"]
+  lv_color_t getStyleBgImgRecolor(uint part);
+  [func="lv_obj_get_style_bg_image_recolor_filtered"]
+  lv_color_t get_bg_img_recolor_filtered(uint part)
+  [func="lv_obj_get_style_bg_image_recolor_opa"]
+  int getStyleBgImageRecolorOPA(uint part);
+  [func="lv_obj_get_style_bg_image_tiled"]
+  boolean getStyleBgImageTiled(uint part);
+  [func="lv_obj_get_style_border_color"]
+  lv_color_t getStyleBorderColor(uint part);
+  [func="lv_obj_get_style_border_color_filtered"]
+  lv_color_t getStyleBorderColorFiltered(uint part);
+  [func="lv_obj_get_style_border_opa"]
+  int getStyleBorderOPA(uint part);
+  [func="lv_obj_get_style_border_width"]
+  lv_coord_t getStyleBorderWidth(uint part);
+  [func="lv_obj_get_style_border_side"]
+  BorderSide getStyleBorderSide(uint part);
+  [func="lv_obj_get_style_border_post"]
+  boolean getStyleBorderPost(uint part)
+  [func="lv_obj_get_style_outline_width"]
+  lv_coord_t getStyleOutlineWidth(uint part);
+  [func="lv_obj_get_style_outline_color"]
+  lv_color_t getStyleOutlineColor(uint part);
+  [func="lv_obj_get_style_outline_color_filtered"]
+  lv_color_t getStyleOutlineColorFiltered(uint part);
+  [func="lv_obj_get_style_outline_opa"]
+  int getStyleOutlineOPA(uint part);
+  [func="lv_obj_get_style_outline_pad"]
+  lv_coord_t getStyleOutlinePadding(uint part);
+  [func="lv_obj_get_style_shadow_width"]
+  lv_coord_t getStyleShadowWidth(uint part);
+  [func="lv_obj_get_style_shadow_ofs_x"]
+  lv_coord_t getStyleShadowOffsetX(uint part);
+  [func="lv_obj_get_style_shadow_ofs_y"]
+  lv_coord_t getStyleShadowOffsetY(uint part);
+  [func="lv_obj_get_style_shadow_spread"]
+  lv_coord_t getStyleShadowSpread(uint part);
+  [func="lv_obj_get_style_shadow_color"]
+  lv_color_t getStyleShadowColor(uint part);
+  [func="lv_obj_get_style_shadow_color_filtered"]
+  lv_color_t getStyleShadowColorFiltered(uint part);
+  [func="lv_obj_get_style_shadow_opa"]
+  int getStyleShadowOPA(uint part)
+  [func="lv_obj_get_style_image_opa"]
+  int getStyleImageOPA(uint part)
+  [func="lv_obj_get_style_image_recolor"]
+  lv_color_t getStyleImageRecolor(uint part);
+  [func="lv_obj_get_style_image_recolor_filtered"]
+  lv_color_t getStyleImageRecolorFiltered(uint part);
+  [func="lv_obj_get_style_image_recolor_opa"]
+  int getStyleImageRecolorOPA(uint part);
+  [func="lv_obj_get_style_line_width"]
+  lv_coord_t getStyleLineWidth(uint part);
+  [func="lv_obj_get_style_line_dash_width"]
+  lv_coord_t getStyleLineDashWidth(uint part);
+  [func="lv_obj_get_style_line_dash_gap"]
+  lv_coord_t getStyleLineDashGap(uint part);
+  [func="lv_obj_get_style_line_rounded"]
+  boolean getStyleLineRounded(uint part);
+  [func="lv_obj_get_style_line_color"]
+  lv_color_t getStyleLineColor(uint part);
+  [func="lv_obj_get_style_line_color_filtered"]
+  lv_color_t getStyleLineColorFiltered(uint part);
+  [func="lv_obj_get_style_line_opa"]
+  int getStyleLineOPA(uint part);
+  [func="lv_obj_get_style_arc_width"]
+  lv_coord_t getStyleArcWidth(uint part);
+  [func="lv_obj_get_style_arc_rounded"]
+  boolean getStyleArcRounded(uint part);
+  [func="lv_obj_get_style_arc_color"]
+  lv_color_t getStyleArcColor(uint part);
+  [func="lv_obj_get_style_arc_color_filtered"]
+  lv_color_t getStyleArcColorFiltered(uint part);
+  [func="lv_obj_get_style_arc_opa"]
+  int getStyleArcOPA(uint part);
+  [func="lv_obj_get_style_arc_image_src"]
+  string getStyleArcIamegSrc(uint part);
+  [func="lv_obj_get_style_text_color"]
+  lv_color_t getStyleTextColor(uint part);
+  [func="lv_obj_get_style_text_color_filtered"]
+  lv_color_t getStyleTextColorFiltered(uint part);
+  [func="lv_obj_get_style_text_opa"]
+  int getStyleTextOPA(uint part);
+  //[func="lv_obj_get_style_text_font"]
+  //const lv_font_t * get_text_font(uint part)
+  [func="lv_obj_get_style_text_letter_space"]
+  lv_coord_t getStyleTextLetterSpace(uint part);
+  [func="lv_obj_get_style_text_line_space"]
+  lv_coord_t getStyleTextLineSpace(uint part);
+  [func="lv_obj_get_style_text_decor"]
+  TextDecor getStyleTextDecor(uint part);
+  [func="lv_obj_get_style_text_align"]
+  TextAlign getStyleTextAlign(uint part);
+  [func="lv_obj_get_style_radius"]
+  lv_coord_t getStyleRadius(uint part);
+  [func="lv_obj_get_style_clip_corner"]
+  boolean getStyleClipCorner(uint part);
+  [func="lv_obj_get_style_opa"]
+  int getStyleOPA(uint part);
+  //[func="lv_obj_get_style_color_filter_dsc"]
+  //const lv_color_filter_dsc_t * get_color_filter_dsc(uint part)
+  [func="lv_obj_get_style_color_filter_opa"]
+  int getStyleColorFilterOPA(uint part);
+  [func="lv_obj_get_style_anim_time"]
+  uint getStyleAnimTime(uint part);
+  [func="lv_obj_get_style_anim_speed"]
+  uint getStyleAnimSpeed(uint part);
+  //[func="lv_obj_get_style_transition"]
+  //const lv_style_transition_dsc_t * get_transition(uint part)
+  [func="lv_obj_get_style_blend_mode"]
+  BlendMode getStyleBlendMode(uint part);
+  [func="lv_obj_get_style_layout"]
+  int getStyleLayout(uint part);
+  [func="lv_obj_get_style_base_dir"]
+  BaseDirection getStyleBaseDirection(uint part);
+
+  // grid
+  [param_pack=true, name="grid"]
+  void setGridArray(int[] columns, int[] rows);
+  [func="lv_obj_set_grid_cell", param_pack=true, name="gridCell"]
+  void setGridCell(GridAlign columnAlign, int columnPos, int columnSpan, GridAlign rowAlign, int rowPos, int rowSpan);
+
+  // events
+  [type="event", source_gen="event-call", code="LV_EVENT_VALUE_CHANGED", event_type="WidgetEvent"]
+  property event_cb onvaluechanged writeonly;
+}
+
+const LV_LABEL_LONG_WRAP = 0;
+const LV_LABEL_LONG_DOT = 1;
+const LV_LABEL_LONG_SCROLL = 2;
+const LV_LABEL_LONG_SCROLL_CIRCULAR = 3;
+const LV_LABEL_LONG_CLIP = 4;
+
+[tag="label", create="lv_label_create", native_class="lv_label_class"]
+interface Label extends Widget {
+  [set="lv_label_set_text", get="lv_label_get_text"]
+  property string text;
+  [set="lv_label_set_recolor", get="lv_label_get_recolor"]
+  property boolean recolor;
+
+  enum LongMode {
+    [value="LV_LABEL_LONG_WRAP"]
+    WRAP,
+    [value="LV_LABEL_LONG_DOT"]
+    DOT,
+    [value="LV_LABEL_LONG_SCROLL"]
+    SCROLL,
+    [value="LV_LABEL_LONG_SCROLL_CIRCULAR"]
+    SCROLL_CIRCULAR,
+    [value="LV_LABEL_LONG_CLIP"]
+    CLIP,
+  };
+
+  [set="lv_label_set_long_mode", get="lv_label_get_long_mode"]
+  property LongMode longMode;
+
+  [set="lv_label_set_text_selection_start", get="lv_label_get_text_selection_start"]
+  property int selectionStart;
+
+  [set="lv_label_set_text_selection_end", get="lv_label_get_text_selection_end"]
+  property int selectionEnd;
+
+  [func="lv_label_ins_text"]
+  void insertText(uint pos, string text);
+
+  [func="lv_label_cut_text"]
+  void cutText(uint pos, uint count);
+}
+
+[tag="button", create="lv_btn_create", native_class="lv_button_class"]
+interface Button extends Widget {
+  [type="event", source_gen="event-call", code="LV_EVENT_CLICKED", event_type="WidgetEvent"]
+  property event_cb onclick writeonly;
+}
+
+[tag="arc", create="lv_arc_create", native_class="lv_arc_class"]
+interface Arc extends Widget {
+  [set="lv_arc_set_start_angle", get="lv_arc_get_angle_start"]
+  property int angleStart;
+  [set="lv_arc_set_end_angle", get="lv_arc_get_angle_end"]
+  property int angleEnd;
+  [set="lv_arc_set_bg_start_angle", get="lv_arc_get_bg_angle_start"]
+  property int bgAngleStart;
+  [set="lv_arc_set_bg_end_angle", get="lv_arc_get_bg_angle_end"]
+  property int bgAngleEnd;
+
+  [set="lv_arc_set_rotation"]
+  property int rotation writeonly;
+
+  enum Mode {
+    [value="LV_ARC_MODE_NORMAL"]
+    NORMAL,
+    [value="LV_ARC_MODE_SYMMETRICAL"]
+    SYMMETRICAL,
+    [value="LV_ARC_MODE_REVERSE"]
+    REVERSE
+  };
+  [set="lv_arc_set_mode", get="lv_arc_get_mode"]
+  property Mode mode;
+
+  [set="lv_arc_set_value", get="lv_arc_get_value"]
+  property int value;
+
+  [set="lv_arc_set_min_value", get="lv_arc_get_min_value"]
+  property int min;
+
+  [set="lv_arc_set_max_value", get="lv_arc_get_max_value"]
+  property int max;
+
+  [set="lv_arc_set_change_rate"]
+  property int changeRate writeonly;
+}
+
+[tag="bar", create="lv_bar_create", native_class="lv_bar_class"]
+interface Bar extends Widget {
+  [func="lv_bar_set_value", param_pack=true, name="value"]
+  void setValue(int value, Animate animate);
+
+  [func="lv_bar_set_start_value", param_pack=true, name="startValue"]
+  void setStartValue(int value, Animate animate);
+
+  [func="lv_bar_set_range", param_pack=true, name="range"]
+  void setRange(int min, int max);
+
+  [get="lv_bar_get_value"]
+  property int value readonly;
+
+  [get="lv_bar_get_start_value"]
+  property int startValue readonly;
+
+  [get="lv_bar_get_min_value"]
+  property int min readonly;
+
+  [get="lv_bar_get_max_value"]
+  property int max readonly;
+
+  enum Mode {
+    [value="LV_BAR_MODE_NORMAL"]
+    NORMAL,
+    [value="LV_BAR_MODE_SYMMETRICAL"]
+    SYMETRICAL,
+    [value="LV_BAR_MODE_RANGE"]
+    RANGE
+  };
+  [set="lv_bar_set_mode", get="lv_bar_get_mode"]
+  property Mode mode;
+}
+
+[tag="checkbox", create="lv_checkbox_create", native_class="lv_checkbox_class"]
+interface Checkbox extends Widget {
+  [set="lv_checkbox_set_text", get="lv_checkbox_get_text"]
+  property string text;
+}
+
+[tag="image", create="lv_img_create", native_class="lv_image_class"]
+interface Image extends Widget {
+  [set="lv_img_set_src", get="lv_img_get_src"]
+  property string src;
+
+  [set="lv_img_set_offset_x", get="lv_img_get_offset_x"]
+  property int offsetX;
+  [set="lv_img_set_offset_y", get="lv_img_get_offset_y"]
+  property int offsetY;
+
+  [set="lv_img_set_angle", get="lv_img_get_angle"]
+  property int angle;
+
+  [func="lv_img_set_pivot", param_pack=true, name="pivot"]
+  void setPivot(int x, int y);
+
+  [get="lv_img_get_pivot"]
+  property Point pivot readonly;
+
+  [set="lv_img_set_zoom", get="lv_img_get_zoom"]
+  property int zoom;
+
+  [set="lv_img_set_antialias", get="lv_img_get_antialias"]
+  property boolean antialias;
+}
+
+[tag="line", create="lv_line_create", native_class="lv_line_class"]
+interface Line extends Widget {
+  [set="lv_line_set_y_invert", get="lv_line_get_y_invert"]
+  property int yInvert;
+
+  property object points writeonly;
+}
+
+[tag="dropdown", create="lv_dropdown_create", native_class="lv_dropdown_class"]
+interface Dropdown extends Widget {
+  [set="lv_dropdown_set_text", get="lv_dropdown_get_text"]
+  property string text;
+
+  [set="lv_dropdown_set_options", get="lv_dropdown_get_options"]
+  property string options;
+
+  [set="lv_dropdown_set_selected", get="lv_dropdown_get_selected"]
+  property int selectedPos;
+
+  [func="lv_dropdown_add_option"]
+  void addOption(string option, uint pos);
+  [func="lv_dropdown_clear_options"]
+  void clearOptions();
+
+  [set="lv_dropdown_set_dir", get="lv_dropdown_get_dir"]
+  property Direction direction;
+
+  [set="lv_dropdown_set_selected_highlight", get="lv_dropdown_get_selected_highlight"]
+  property boolean selectedHighlight;
+
+  [set="lv_dropdown_set_symbol", get="lv_dropdown_get_symbol"]
+  property string symbol;
+
+  [get="lv_dropdown_get_option_cnt"]
+  property int optionsCount readonly;
+
+  [func="lv_dropdown_get_option_index"]
+  int getOptionIndex(string option);
+
+  [get="lv_dropdown_get_selected_str", native_value_type="string_buffer", buffer_length=256]
+  property string selectedString readonly;
+
+  [func="lv_dropdown_open"]
+  void open();
+
+  [func="lv_dropdown_close"]
+  void close();
+
+  [get="lv_dropdown_is_open"]
+  property boolean isOpen readonly;
+}
+
+[tag="roller", create="lv_roller_create", native_class="lv_roller_class"]
+interface Roller extends Widget {
+  enum Mode {
+    [value="LV_ROLLER_MODE_NORMAL"]
+    NORMAL,
+    [value="LV_ROLLER_MODE_INFINITE"]
+    INFINITE
+  };
+
+  [func="lv_roller_set_options", param_pack=true, name="options"]
+  void setOptions(string options, Mode mode);
+
+  [func="lv_roller_set_selected", param_pack=true, name="selected"]
+  void setSelected(int option, Animate animate);
+  [get="lv_roller_get_selected"]
+  property int selected readonly;
+
+  [get="lv_roller_get_selected_str", native_value_type="string_buffer", buffer_length=256]
+  property string selectedString readonly;
+
+  [set="lv_roller_set_visible_row_count"]
+  property int visibleRowCount writeonly;
+
+  [get="lv_roller_get_options"]
+  property string options readonly;
+
+  [get="lv_roller_get_option_cnt"]
+  property int optionsCount readonly;
+}
+
+[tag="slider", create="lv_slider_create", native_class="lv_slider_class"]
+interface Slider extends Bar {
+  [func="lv_slider_set_left_value", param_pack=true, name="leftValue"]
+  void setLeftValue(int value, Animate animate);
+
+  [get="lv_slider_get_left_value"]
+  property int leftValue readonly;
+}
+
+[tag="switch", create="lv_switch_create", native_class="lv_switch_class"]
+interface Switch extends Widget {
+
+}
+
+[tag="table", create="lv_table_create", native_class="lv_table_class"]
+interface Table extends Widget {
+  [func="lv_table_set_cell_value"]
+  void setCell(int row, int col, string text);
+
+  [set="lv_table_set_row_cnt", get="lv_table_get_row_cnt"]
+  property int rowCount;
+
+  [set="lv_table_set_col_cnt", get="lv_table_get_col_cnt"]
+  property int columnCount;
+
+  [func="lv_table_set_col_width"]
+  void setColumnWidth(int col_id, int width);
+  [func="lv_table_get_col_width"]
+  void getColumnWidth(int col_id);
+
+  enum CellControl {
+    [value="LV_TABLE_CELL_CTRL_MERGE_RIGHT"]
+    MERGE_RIGHT,
+    [value="LV_TABLE_CELL_CTRL_TEXT_CROP"]
+    TEXT_CROP,
+    [value="LV_TABLE_CELL_CTRL_CUSTOM_1"]
+    CUSTOM_1,
+    [value="LV_TABLE_CELL_CTRL_CUSTOM_2"]
+    CUSTOM_2,
+    [value="LV_TABLE_CELL_CTRL_CUSTOM_3"]
+    CUSTOM_3,
+    [value="LV_TABLE_CELL_CTRL_CUSTOM_4"]
+    CUSTOM_4,
+  };
+  [func="lv_table_add_cell_ctrl"]
+  void addCellControl(int row, int col, CellControl ctrl);
+  [func="lv_table_clear_cell_ctrl"]
+  void clearCellControl(int row, int col, CellControl ctrl);
+  [func="lv_table_has_cell_ctrl"]
+  void hasCellControl(int row, int col, CellControl ctrl);
+
+  [func="lv_table_get_cell_value"]
+  string getCellValue(int row, int col);
+
+  property object selectedCell readonly;
+
+  property object columns writeonly;
+  property object rows writeonly;
+}
+
+[tag="textarea", create="lv_textarea_create", native_class="lv_textarea_class"]
+interface TextArea extends Widget {
+  [func="lv_textarea_add_char"]
+  void addChar(int chr);
+
+  [func="lv_textarea_add_text"]
+  void addText(string text);
+
+  [func="lv_textarea_delete_char"]
+  void deleteChar();
+
+  [func="lv_textarea_delete_char_forward"]
+  void deleteForwardChar();
+
+  [set="lv_textarea_set_text", get="lv_textarea_get_text"]
+  property string text;
+
+  [set="lv_textarea_set_placeholder_text", get="lv_textarea_get_placeholder_text"]
+  property string placeholderText;
+
+  [set="lv_textarea_set_cursor_pos", get="lv_textarea_get_cursor_pos"]
+  property int cursorPost;
+
+  [set="lv_textarea_set_cursor_click_pos", get="lv_textarea_get_cursor_click_pos"]
+  property boolean cursorClickPos;
+
+  [set="lv_textarea_set_password_mode", get="lv_textarea_get_password_mode"]
+  property boolean passwordMode;
+
+  [set="lv_textarea_set_password_bullet", get="lv_textarea_get_password_bullet"]
+  property string passwordBullet;
+
+  [set="lv_textarea_set_one_line", get="lv_textarea_get_one_line"]
+  property boolean oneLine;
+
+  [set="lv_textarea_set_accepted_chars", get="lv_textarea_get_accepted_chars"]
+  property string acceptedChars;
+
+  [set="lv_textarea_set_max_length", get="lv_textarea_get_max_length"]
+  property int maxLength;
+
+  [set="lv_textarea_set_insert_replace"]
+  property string insertReplace writeonly;
+
+  [set="lv_textarea_set_text_selection", get="lv_textarea_get_text_selection"]
+  property boolean textSelection;
+
+  [set="lv_textarea_set_password_show_time", get="lv_textarea_get_password_show_time"]
+  property int passwordShowTime;
+
+  [set="lv_textarea_set_align"]
+  property TextAlign align writeonly;
+
+  [func="lv_textarea_clear_selection"]
+  void clearSelection();
+
+  [func="lv_textarea_cursor_right"]
+  void moveCursorRight();
+
+  [func="lv_textarea_cursor_left"]
+  void moveCursorLeft();
+
+  [func="lv_textarea_cursor_down"]
+  void moveCursorDown();
+
+  [func="lv_textarea_cursor_up"]
+  void moveCursorUp();
+}
+
+[
+  tag="chart",
+  create="lv_chart_create",
+  native_class="lv_chart_class"
+]
+interface Chart extends Widget {
+ enum Type {
+   [value="LV_CHART_TYPE_NONE"]
+   NONE,
+   [value="LV_CHART_TYPE_LINE"]
+   LINE,
+   [value="LV_CHART_TYPE_BAR"]
+   BAR,
+   [value="LV_CHART_TYPE_SCATTER"]
+   SCATTER
+ }
+
+  enum UpdateMode {
+    [value="LV_CHART_UPDATE_MODE_SHIFT"]
+    SHIFT,
+    [value="LV_CHART_UPDATE_MODE_CIRCULAR"]
+    CIRCULAR
+  }
+
+  enum Axis {
+    [value="LV_CHART_AXIS_PRIMARY_Y"]
+    PRIMARY_Y,
+    [value="LV_CHART_AXIS_SECONDARY_Y"]
+    SECONDARY_Y,
+    [value="LV_CHART_AXIS_PRIMARY_X"]
+    PRIMARY_X,
+    [value="LV_CHART_AXIS_SECONDARY_X"]
+    SECONDARY_X
+  }
+
+
+  [set="lv_chart_set_type", get="lv_chart_get_type"]
+  property Type type;
+
+  [set="lv_chart_set_point_count", get="lv_chart_get_point_count"]
+  property int pointCount;
+
+  [get="lv_chart_get_pressed_point"]
+  property int pressedPoint readonly;
+
+  [func="lv_chart_set_range"]
+  void setRange(Axis axis, int min, int max);
+
+  [set="lv_chart_set_update_mode"]
+  property UpdateMode updateMode writeonly;
+
+  [func="lv_chart_set_div_line_count", param_pack=true, name="divLineCount"]
+  void setDivLineCount(int horizontal, int vertical);
+
+  [set="lv_chart_set_zoom_x", get="lv_chart_get_zoom_x"]
+  property int zoomX;
+
+  [set="lv_chart_set_zoom_y", get="lv_chart_get_zoom_y"]
+  property int zoomY;
+
+  [func="lv_chart_set_axis_tick", param_pack=true, name="axisTick"]
+  void setAxisTick(Axis axis, int majorLen, int minorLen, int majorCount, int minorCount, boolean label, int drawSize);
+
+
+  [func="lv_chart_refresh"]
+  void refresh();
+
+  [func="lv_chart_add_series"]
+  lv_chart_series_p addSeries(lv_color_t color, Axis axis);
+  [func="lv_chart_remove_series"]
+  void removeSeries(lv_chart_series_p series);
+  [func="lv_chart_hide_series"]
+  void hideSeries(lv_chart_series_p series, boolean hide);
+  [func="lv_chart_set_series_color"]
+  void setSeriesColor(lv_chart_series_p series, lv_color_t color);
+  [func="lv_chart_set_x_start_point"]
+  void setXStartPint(lv_chart_series_p series, int id);
+  [func="lv_chart_get_series_next"]
+  lv_chart_series_p getSeriesNext(lv_chart_series_p series);
+  [func="lv_chart_set_all_value"]
+  void setAllValue(lv_chart_series_p series, lv_coord_t value);
+  [func="lv_chart_set_next_value"]
+  void setNextValue(lv_chart_series_p series, lv_chart_series_p next);
+  [func="lv_chart_set_next_value2"]
+  void setNextValue2(lv_chart_series_p series, lv_coord_t x, lv_coord_t y);
+  [func="lv_chart_set_value_by_id"]
+  void setValueById(lv_chart_series_p series, int id, lv_coord_t value);
+  [func="lv_chart_set_value_by_id2"]
+  void setValueById2(lv_chart_series_p series, int id, lv_coord_t x, lv_coord_t y);
+  //[func="lv_chart_set_ext_y_array"]
+  //void setExtYArray(lv_chart_series_p series, lv_coord_t[] array);
+  //[func="lv_chart_set_ext_x_array"]
+  //void setExtXArray(lv_chart_series_p series, lv_coord_t[] array);
+  //[func="lv_chart_get_y_array"]
+  //lv_coord_t[] getXArray(lv_chart_series_p series);
+  //[func="lv_chart_get_x_array"]
+  //lv_coord_t[] getYArray(lv_chart_series_p series);
+
+  [func="lv_chart_add_cursor"]
+  lv_chart_cursor_p addCursor(lv_color_t color, Direction dir);
+  //[func="lv_chart_set_cursor_pos"]
+  //void setCursorPostion(lv_chart_cursor_p cursor, Point point);
+  [func="lv_chart_set_cursor_point"]
+  void setCursorPoint(lv_chart_cursor_p cursor, lv_chart_series_p series, int point_id);
+  //[func="lv_chart_get_cursor_point"]
+  //Point getCursorPoint(lv_chart_cursor_p cursor);
+
+};
+
+/////////////////////////////////////////////////////////
+boolean inflate(object parent, object param);
+
+Widget findWidget(string id);
+
+///////////////////////////////////////////////////
+// math
+[func="lv_trigo_sin", need_self=false]
+int trigoSin(int v);
+[func="lv_trigo_cos", need_self=false]
+int trigoCos(int v);
+[func="lv_bezier3", need_self=false]
+int bezier3(uint t, uint u0, uint u1, uint u2, uint u3);
+[func="lv_atan2", need_self=false]
+int atan2(int x, int y);
+[func="lv_pow", need_self=false]
+long pow(long base, int exp);
+[func="lv_map", need_self=false]
+int map(int x, int min_in, int max_in, int min_out, int max_out);
+
+enum ColorFormat {
+  [value="LV_COLOR_FORMAT_UNKNOWN"]
+  UNKNOWN,
+  [value="LV_COLOR_FORMAT_RAW"]
+  RAW,
+  [value="LV_COLOR_FORMAT_RAW_ALPHA"]
+  RAW_ALPHA,
+  [value="LV_COLOR_FORMAT_L8"]
+  L8,
+  [value="LV_COLOR_FORMAT_I1"]
+  I1,
+  [value="LV_COLOR_FORMAT_I2"]
+  I2,
+  [value="LV_COLOR_FORMAT_I4"]
+  I4,
+  [value="LV_COLOR_FORMAT_I8"]
+  I8,
+  [value="LV_COLOR_FORMAT_A8"]
+  A8,
+  [value="LV_COLOR_FORMAT_RGB565"]
+  RGB565,
+  [value="LV_COLOR_FORMAT_RGB565A8"]
+  RGB565A8,
+  [value="LV_COLOR_FORMAT_RGB888"]
+  RGB888,
+  [value="LV_COLOR_FORMAT_ARGB8888"]
+  ARGB8888,
+  [value="LV_COLOR_FORMAT_XRGB8888"]
+  XRGB8888,
+  [value="LV_COLOR_FORMAT_NATIVE_REVERSED"]
+  NATIVE_REVERSED,
+  [value="LV_COLOR_FORMAT_A1"]
+  A1,
+  [value="LV_COLOR_FORMAT_A2"]
+  A2,
+  [value="LV_COLOR_FORMAT_A4"]
+  A4,
+  [value="LV_COLOR_FORMAT_NATIVE"]
+  NATIVE,
+  [value="LV_COLOR_FORMAT_NATIVE_WITH_ALPHA"]
+  NATIVE_WITH_ALPHA,
+};
+
+
+[
+  tag="CanvasRenderingContext2D",
+  native_type="CanvasRenderingContext2D*", 
+  // create="NativeCreateRenderContext2D",
+  from_native="jsvalue_from_canvasRenderContext",
+  to_native="jsvalue_to_canvasRenderContext"
+]
+interface CanvasRenderingContext2D {
+  property lv_color32_t fillStyle;
+  property lv_color32_t shadowColor;
+  property lv_color32_t strokeStyle;
+  property lv_coord_t shadowOffsetX;
+  property lv_coord_t shadowOffsetY;
+
+  property int direction;
+  property int lineWidth;
+  property int shadowBlur;
+  property int lineJoin;
+  property int textAlign;
+
+  [func="CanvasRenderingContext2D_clearRect"]
+  void clearRect(lv_coord_t x, lv_coord_t y, lv_coord_t width, lv_coord_t height);
+  [func="CanvasRenderingContext2D_fillRect"]
+  void fillRect(lv_coord_t x, lv_coord_t y, lv_coord_t width, lv_coord_t height);
+  [func="CanvasRenderingContext2D_beginPath"]
+  void beginPath();
+  [func="CanvasRenderingContext2D_moveTo"]
+  void moveTo(lv_coord_t x, lv_coord_t y);
+  [func="CanvasRenderingContext2D_lineTo"]
+  void lineTo(lv_coord_t x, lv_coord_t y);
+  [func="CanvasRenderingContext2D_stroke"]
+  void stroke();
+};
+
+
+// canvas interface
+[
+  tag="canvas",
+  create="NativeCreateCanvas",
+  native_class="lv_canvas_class",
+  need_parent=true,
+  need_context=true
+]
+interface Canvas extends Image {
+  property lv_coord_t width;
+  property lv_coord_t height;
+  property ColorFormat format;
+
+  [rawfunc="canvas_getContext"]
+  CanvasRenderingContext2D getContext(string type);
+}

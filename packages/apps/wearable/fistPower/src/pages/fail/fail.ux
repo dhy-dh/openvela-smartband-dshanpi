@@ -1,0 +1,83 @@
+<import name="number" src="../../common/number.ux"></import>
+<template>
+	<div class="page-wrap">
+		<div class="demo-page result-wrap">
+			<div class="max-power item-center">
+				<img class="fail-img" src="../../common/fail_logo.png" />
+				<text class="bold max-bold">请正确佩戴手环或加大挥拳力度</text>
+			</div>
+			<div class="item-center again-btn">
+				<div class="c-btn" onclick="jump('/pages/loading')">
+					<text class="c-btn-txt">再来一次</text>
+				</div>
+			</div>
+		</div>
+	</div>
+</template>
+
+<script>
+import router from "@system.router";
+import storage from "@system.storage";
+export default {
+	onInit() {
+		// storage.set({
+		// 	key: "maxPower",
+		// 	value: String("15.3"),
+		// 	success: function (data) {
+		// 		console.log(data);
+		// 	},
+		// });
+		// storage.set({
+		// 	key: "maxSpeed",
+		// 	value: String("19.2"),
+		// 	success: function (data) {
+		// 		console.log(data);
+		// 	},
+		// });
+	},
+	jump(path) {
+		router.replace({
+			uri: path,
+		});
+	},
+};
+</script>
+
+<style>
+.result-wrap {
+	align-items: left;
+	position: relative;
+	justify-content: space-between;
+	padding: 20px;
+}
+
+@media (shape: pill-shaped) {
+	.fail-img {
+		width: 100%;
+		height: 80px;
+	}
+}
+
+.item-center {
+	align-items: center;
+}
+
+.max-power {
+	width: 100%;
+
+	flex-direction: column;
+	margin-top: 80px;
+}
+
+.max-bold {
+	padding-top: 20px;
+	text-align: center;
+}
+
+.again-btn {
+	margin-top: 30px;
+	width: 100%;
+	flex-direction: column;
+	margin-bottom: 6px;
+}
+</style>

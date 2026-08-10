@@ -1,0 +1,6 @@
+*.o
+Make.dep
+.depend
+.built
+pfw/
+__pycache__

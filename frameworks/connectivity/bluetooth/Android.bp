@@ -1,0 +1,124 @@
+bootstrap_go_package {
+    name: "soong-frameworkBluetooth",
+    pkgPath: "android/soong/frameworkBluetooth",
+    deps: [
+        "soong-android",
+        "soong-cc",
+    ],
+    srcs: [
+          "frameworkBluetooth.go",
+    ],
+    pluginFor: ["soong_build"],
+}
+
+frameworkBluetooth_cc_library {
+    name : "libbt-framework-client",
+    min_sdk_version: "33",
+
+    srcs : [
+        "framework/common/*.c",
+        "framework/socket/*.c",
+        "service/common/index_allocator.c",
+        "service/ipc/socket/src/bt_socket_client.c",
+        "service/ipc/socket/src/bt_socket_adapter.c",
+        "service/ipc/socket/src/bt_socket_advertiser.c",
+        "service/ipc/socket/src/bt_socket_scan.c",
+        "service/ipc/socket/src/bt_socket_gattc.c",
+        "service/ipc/socket/src/bt_socket_gatts.c",
+        "service/ipc/socket/src/bt_socket_a2dp_sink.c",
+        "service/ipc/socket/src/bt_socket_a2dp_source.c",
+        "service/ipc/socket/src/bt_socket_avrcp_target.c",
+        "service/ipc/socket/src/bt_socket_hfp_ag.c",
+        "service/ipc/socket/src/bt_socket_hfp_hf.c",
+        "service/ipc/socket/src/bt_socket_hid_device.c",
+        "service/ipc/socket/src/bt_socket_spp.c",
+        "service/src/manager_service.c",
+    ],
+
+    include_dirs : [
+        "vendor/vela/apps/system/libuv/libuv/include",
+        "vendor/vela/apps/system/libuv/libuv/src",
+    ],
+
+    local_include_dirs : [
+        "framework/include",
+        "service",
+        "service/common",
+        "service/ipc",
+        "service/ipc/socket/include",
+        "service/profiles",
+        "service/profiles/include",
+        "service/src",
+        "dfx",
+    ],
+
+    static_libs : [
+        "libuv",
+    ],
+
+    shared_libs : [
+        "liblog",
+    ],
+
+    cflags : [
+        //"-DANDROID",
+        "-Werror",
+        "-Wno-unused-parameter",
+        "-Wno-unused-function",
+        "-Wno-unused-variable",
+        "-Wno-typedef-redefinition",
+    ],
+
+    apex_available : [
+        "//apex_available:platform",
+        "com.android.btservices",
+    ],
+}
+
+cc_binary {
+    name : "bttool",
+
+    srcs : [
+        "tools/bt_tools.c",
+        "tools/adv.c",
+        "tools/scan.c",
+        "tools/gatt_client.c",
+        "tools/gatt_server.c",
+        "tools/a2dp_sink.c",
+        "tools/a2dp_source.c",
+        "tools/hfp_ag.c",
+        "tools/hfp_hf.c",
+        "tools/hid_device.c",
+        "tools/spp.c",
+        "tools/log.c",
+        "tools/utils.c",
+    ],
+
+    include_dirs : [
+        "vendor/vela/apps/system/libuv/libuv/include",
+        "vendor/vela/apps/system/libuv/libuv/src",
+    ],
+
+    local_include_dirs : [
+        "framework/include",
+        "service",
+        "service/utils",
+    ],
+
+    static_libs : [
+        "libuv",
+    ],
+
+    shared_libs : [
+        "liblog",
+        "libbt-framework-client",
+    ],
+
+    cflags : [
+        //"-DANDROID",
+        "-Werror",
+        "-Wno-unused-parameter",
+        "-Wno-unused-function",
+        "-Wno-unused-variable",
+    ],
+}

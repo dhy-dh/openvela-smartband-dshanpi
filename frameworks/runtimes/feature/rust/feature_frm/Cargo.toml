@@ -1,0 +1,12 @@
+cargo-features = ["path-bases"]
+
+[package]
+name = "feature_frm"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+libc = { workspace = true }
+feature_macros = { workspace = true }
+feature_sys = { workspace = true }
+vdk = { workspace = true }

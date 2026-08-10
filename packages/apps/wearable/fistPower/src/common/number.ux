@@ -1,0 +1,44 @@
+<template>
+	<div class="wrap">
+		<div class="num-list" if="{{numList.length}}">
+			<img class="num_{{value}}" for="value in numList" src="/common/num_{{value}}.png" />
+		</div>
+		<div else class="num-list">
+			<img src="../common/no_number.png" />
+		</div>
+	</div>
+</template>
+<script>
+export default {
+	props: ["value"],
+	private: {},
+	onInit() {},
+	computed: {
+		numList() {
+			let newV = this.value;
+			let numList = [];
+			if (isNaN(String(newV))) {
+				//toolkit2.0转换bug，会把空字符串转成true
+				numList = [];
+			} else {
+				numList = String(newV).split("");
+				//将.转换为dot字符
+				for (let i = 0; i < numList.length; i++) {
+					if (numList[i] === ".") {
+						numList[i] = "dot";
+						break;
+					}
+				}
+			}
+			return numList;
+		},
+	},
+};
+</script>
+<style>
+.wrap {
+	position: relative;
+	height: 80px;
+	overflow: hidden;
+}
+</style>

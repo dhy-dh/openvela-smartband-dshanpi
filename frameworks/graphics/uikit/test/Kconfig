@@ -1,0 +1,71 @@
+
+menuconfig UIKIT_DEMO
+	tristate "UIKit Demo"
+	default n
+	depends on GRAPHICS_LVGL
+	---help---
+		Enable build the UIKit Demo programs
+
+if UIKIT_DEMO
+
+config UIKIT_DEMO_PRIORITY
+	int "uikit_demo task priority"
+	default 100
+
+config UIKIT_DEMO_STACKSIZE
+	int "uikit_demo stack size"
+	default 32768
+
+config UIKIT_DEMO_VIDEO
+	bool "Enable video demo"
+	depends on UIKIT_VIDEO_ADAPTER
+	default n
+
+config UIKIT_DEMO_VECTOR_DRAW
+	bool "Enable vector complex draw demos"
+	depends on LV_USE_VECTOR_GRAPHIC || LV_USE_VECTOR_GRAPHIC_OPTIMIZE
+
+	default n
+
+config UIKIT_DEMO_FONT_STRESS
+	bool "Enable font stress demo"
+	depends on LV_USE_VECTOR_GRAPHIC || LV_USE_VECTOR_GRAPHIC_OPTIMIZE
+
+	default n
+
+config UIKIT_DEMO_BENCHMARK
+	bool "Enable benchmark"
+	default n
+	depends on LV_FONT_MONTSERRAT_24
+
+if UIKIT_DEMO_BENCHMARK
+
+config UIKIT_DEMO_BENCHMARK_FREETYPE_FONT_PATH
+	string "Path to Freetype font file which is used in benchmark test"
+	default "/font/MiSans-Regular.ttf"
+	depends on UIKIT_DEMO_BENCHMARK && LV_USE_FREETYPE
+
+config UIKIT_DEMO_BENCHMARK_PATH
+	string "Path to asset files which are used in benchmark test"
+	default "/data/benchmark/"
+	depends on UIKIT_DEMO_BENCHMARK
+
+endif # UIKIT_DEMO_BENCHMARK
+
+if UIKIT_DEMO_VIDEO
+
+config UIKIT_DEFAULT_VIDEO_PATH
+	string "Defailt video path in video example"
+	default "/data/h264_aac_240p.mp4"
+
+endif # UIKIT_DEMO_VIDEO
+
+config UIKIT_DEMO_TIME_OBJCREATION
+	bool "Time object creation demo"
+	default n
+
+config UIKIT_DEMO_INPUT
+	bool "Input demo"
+	default n
+
+endif # UIKIT_DEMO

@@ -1,0 +1,188 @@
+<template>
+  <div class="flex-center column content">
+    <text class="result flex-center">
+      <span class="result-text">你的点数为  </span>
+      <span class="result-number">{{result}}</span>
+    </text>
+    <div class="dice-area flex-center">
+      <image class="dice-image" src="../../common/{{imgSrc}}.png" />
+    </div>
+    <text class="restart btn" onclick="restart">{{init ? '再来一次' : '开 始'}}</text>
+    <text class="history btn" onclick="goHistory">历史记录</text>
+  </div>
+</template>
+
+<script>
+import router from '@system.router'
+import storage from '@system.storage'
+export default {
+  private :{
+    result: 1,
+    init: false,
+    index: 0,
+    imgSrc:'1',
+    timer: null,
+    history: null
+  },
+  onReady() {
+    let _this = this;
+    storage.get({
+      key: 'DICE_HISTORY',
+      success: function(data) {
+        console.log('handling success:',data);
+        _this.history = data ? JSON.parse(data) : []
+      },
+      fail: function(_, code) {
+        console.log(`handling fail, code = ${code}`)
+        _this.history = []
+      }
+    })
+  },
+  onDestroy() {
+    clearInterval(this.timer)
+  },
+  restart() {
+    if (this.timer) {
+      return false
+    }
+    this.index = 0;
+    let result = Math.ceil(Math.random() * 6);
+    let imgUrl = ['0-'+this.result,'2','3','4','5','6','2','3','4','5','6','2','3','4','5','6','0-'+result];
+    this.timer = setInterval(() => {
+      if (this.index >= 16) {
+        clearInterval(this.timer);
+        this.result = result;
+        this.init = true;
+        this.timer = null;
+        this.save(result)
+      } else {
+        this.index ++;
+        this.imgSrc = imgUrl[this.index]
+      }
+    },100)
+  },
+  goHistory() {
+    if (this.timer) {
+      return false
+    }
+    router.push({
+      uri: 'pages/history',
+      params: {
+        list: this.history
+      }
+    })
+  },
+  format(num) {
+    return num > 9 ? num : ('0' + num);
+  },
+  save(result) {
+    let time = this.getTime();
+    let _this = this;
+    _this.history.unshift({ time, result });
+    if (_this.history.length > 20) {
+      _this.history.splice(20,1)
+    }
+    storage.set({
+      key: 'DICE_HISTORY',
+      value: JSON.stringify(_this.history),
+      success: function() {
+        console.log('handling success')
+      },
+      fail: function(_, code) {
+        console.log(`handling fail, code = ${code}`)
+      }
+    })
+  },
+  getTime() {
+    let time = new Date();
+    let year = time.getFullYear();
+    let month = this.format(time.getMonth() + 1);
+    let day = this.format(time.getDate());
+    let hour = this.format(time.getHours());
+    let min = this.format(time.getMinutes());
+    let sec = this.format(time.getSeconds());
+    return `${year}-${month}-${day} ${hour}:${min}:${sec}`
+  },
+  format(number) {
+    return number >= 10 ? number.toString() : ('0' + number)
+  }
+}
+</script>
+
+<style>
+.content {
+  background-color: #fff;
+  padding-top: 50px;
+}
+.result-text {
+  font-size: 40px;
+  color: #000;
+}
+.result-number {
+  color: #ff0000;
+  font-size: 56px;
+}
+.btn {
+  display: flex;
+  width: 83%;
+  height: 70px;
+  text-align: center;
+  background-color: #ff0000;
+  color: #fff;
+  font-weight: bold;
+  font-size: 36px;
+  border-radius: 20px;
+  margin-bottom: 15px;
+}
+
+.dice-area {
+  flex: 1;
+  width: 100%;
+  background-color: #fff;
+}
+.dice-image {
+  width: 150px;
+  height: 150px;
+  object-fit: cover;
+}
+.flex {
+  display: flex;
+}
+.flex-item {
+  flex: 1;
+}
+.column {
+  flex-direction: column;
+}
+.flex-center {
+  justify-content: center;
+  align-items: center;
+}
+@media (shape: circle){
+  .content {
+    padding: 30px;
+  }
+  .btn {
+    width: 65%;
+  }
+}
+@media (width: 212){
+  .content {
+    padding-bottom: 20px;
+  }
+  .result-text {
+    font-size: 30px;
+  }
+  .result-number {
+    font-size: 32px;
+  }
+  .btn {
+    font-size: 30px;
+    height: 60px;
+    border-radius: 16px;
+  }
+  .history {
+    margin-bottom: 40px;
+  }
+}
+</style>

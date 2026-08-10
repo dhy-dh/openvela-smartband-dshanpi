@@ -1,0 +1,226 @@
+<template>
+  <div class="flex-col justify-center items-center bg">
+    <block if="{{showContent}}">
+      <image-animator
+        class="plus1"
+        id="plus1"
+        images="{{plusframes}}"
+        iteration="1"
+        reverse="true"
+        duration="25ms"
+      />
+      <image-animator
+        class="woodenfish"
+        id="woodenfish"
+        images="{{fishFrames}}"
+        iteration="1"
+        duration="100ms"
+        fixedsize="{{false}}"
+        onclick="handleStart"
+      />
+      <div class="position-absolute bottom-10 footer">
+        <div class="flex-col items-center flex-col footer-text">
+          <text class="fs-28 fw-450 text-center text-white value-text">{{ today }}</text>
+          <text class="fs-20 fw-450 text-center text-color label-text">今日</text>
+        </div>
+        <div class="flex-colitems-center flex-col footer-text">
+          <text class="fs-28 fw-450 text-center text-white value-text">{{ score }}</text>
+          <text class="fs-20 fw-450 text-center text-color label-text">累计</text>
+        </div>
+      </div>
+    </block>
+  </div>
+</template>
+<script>
+import storage from "@system.storage"
+import device from "@system.device"
+import vibrator from '@system.vibrator' 
+
+export default {
+  data: {
+    today: "",
+    score: "",
+    currentDate: "",
+    showContent: false,
+    plusframes: [
+      {src: "/common/images/plus1.png"},
+      {src: "/common/images/plus4.png"},
+      {src: "/common/images/plus3.png"},
+      {src: "/common/images/plus2.png"},
+      {src: "/common/images/plus2.png"},
+      {src: "/common/images/plus2.png"},
+      {src: "/common/images/plus1.png"}
+    ],
+    fishFrames: [
+      {src: "/common/images/woodenfish3.png",width: '192px',height: '212px'},
+      {src: "/common/images/woodenfish2.png",width: '192px',height: '212px'},
+      {src: "/common/images/woodenfish1.png",width: '192px',height: '212px'}
+    ]
+  },
+  onInit() {
+    let date = new Date()
+    this.currentDate = date.toLocaleDateString()
+    let $this = this
+    storage.get({
+      key: "__fishkey",
+      success: function (data) {
+        console.log("onReady handling success")
+        if (data) {
+          let {date, today, score} = JSON.parse(data)
+          if (date === $this.currentDate) {
+            $this.today = today * 1
+          } else {
+            $this.today = 0
+          }
+          $this.score = score * 1
+        } else {
+          $this.today = 0
+          $this.score = 0
+        }
+      },
+      fail: function (data, code) {
+        console.log(`onReady handling fail, code = ${code}`)
+        $this.today = 0
+        $this.score = 0
+      },
+      complete: function () {
+        $this.getDevice();
+      }
+    });
+    
+  },
+  getDevice() {
+    let $this = this;
+    device.getInfo({
+      success: function(res) {
+        let { screenWidth } = res;
+        console.log('screenWidth:',screenWidth)
+        if (screenWidth === 336) {
+          $this.fishFrames = [
+            {src: "/common/images/woodenfish3_rect.png",width: '236px', height: '204px', left: '20px', top: '17px'},
+            {src: "/common/images/woodenfish2_rect.png",width: '256px', height: '222px', left: '10px', top: '7px'},
+            {src: "/common/images/woodenfish1_rect.png",width: '276px', height: '238px'}
+          ];
+          $this.plusframes = [
+          {src: "/common/images/plus1_rect.png"},
+          {src: "/common/images/plus4_rect.png"},
+          {src: "/common/images/plus3_rect.png"},
+          {src: "/common/images/plus2_rect.png"},
+          {src: "/common/images/plus2_rect.png"},
+          {src: "/common/images/plus2_rect.png"},
+          {src: "/common/images/plus1_rect.png"}
+          ]
+        }
+      },
+      fail: (data, code) => {
+        console.error(`handling fail, code = ${code}`)
+      },
+      complete: function () {
+        $this.showContent = true
+      }
+    })
+  },
+
+  handleStart() {
+    this.$element("plus1").stop()
+    this.$element("woodenfish").stop()
+
+    // if new date is not current date, then refresh today
+    let date = new Date()
+    let tempDate = date.toLocaleDateString()
+    if (tempDate !== this.currentDate) {
+      this.currentDate = tempDate
+      this.today = 0
+    }
+
+    this.today += 1
+    this.score += 1
+
+    this.$element("plus1").start()
+    this.$element("woodenfish").start()
+
+    vibrator.vibrate({
+      mode: 'short'
+    })
+
+    let data = {
+      date: this.currentDate,
+      today: this.today,
+      score: this.score
+    }
+    storage.set({
+      key: "__fishkey",
+      value: JSON.stringify(data),
+      success: function () {
+        console.log("clickfish handling success")
+      },
+      fail: function (data, code) {
+        console.log(`clickfish handling fail, code = ${code}`)
+      }
+    })
+  }
+}
+</script>
+
+<style>
+@import "../../common/style/unocss-vela.css";
+
+.bg {
+  background-image: url("/common/images/bg.png");
+  background-position: center;
+  justify-content: center;
+}
+
+.plus1 {
+  position: absolute;
+  top: 70px;
+  width: 88px;
+  height: 109px;
+}
+
+.woodenfish {
+  width: 192px;
+  height: 212px;
+}
+.footer {
+  flex-direction: column;
+  justify-content: center;
+}
+.text-color {
+  color: rgba(255, 255, 255, 0.6);
+}
+.footer-text {
+  flex-direction: column;
+  height: 80px;
+}
+
+@media (shape: rect) or (shape: circle) {
+  .bg {
+    background-image: url("/common/images/bg_rect.png");
+    justify-content: space-around;
+  }
+  .woodenfish {
+    width: 276px;
+    height: 238px;
+  }
+  .plus1 {
+    width: 98px;
+    height: 86px;
+    top: 22px;
+  }
+  .footer {
+    flex-direction: row;
+    justify-content: space-around;
+  }
+  .footer-text {
+    width: 118px;
+    height: 90px;
+  }
+  .value-text {
+    font-size: 32px;
+  }
+  .label-text {
+    font-size: 28px;
+  }
+}
+</style>

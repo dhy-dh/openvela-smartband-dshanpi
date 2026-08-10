@@ -1,0 +1,470 @@
+<template>
+  <div class="bg-black">
+    <div class="w-full h-full flex-col bg-black relative" id="root" show="{{noData}}">
+      <div class="h-80 w-full bg-black flex-row px-30 items-center" id="header">
+        <image src="/common/images/back.png" class="w-42 h-42" @click="backClick"></image>
+        <text class="text-32 color-white ml-264 fw-600 lh-42 w-140">家庭相册</text>
+        <text
+          class="text-30 color-velaBlue lh-40 w-160 h-40 ml-150 text-right"
+          @click="saveAsScreensaver"
+          id="screen-btn"
+        ></text>
+      </div>
+      <div id="nodata-div" class="h-400 w-full flex-col items-center" show="{{false}}">
+        <image src="/common/images/icon-nodata.png" class="h-90 w-90 mt-97"></image>
+        <text class="fs-30 lh-40 h-40 mt-29 color-velaWhitea">暂无照片</text>
+      </div>
+      <image
+        class="absolute top-336 left-656 w-114 h-114"
+        id="image-add-box"
+        src="/common/images/add.png"
+        onclick="addClick"
+      ></image>
+    </div>
+    <!-- 未开启屏保 -->
+    <div class="w-full h-full flex-col bg-black" id="empty-page" show="{{!noData}}">
+      <div class="h-80 w-full bg-black flex-row justify-between px-30 items-center" id="header">
+        <image src="/common/images/back.png" class="w-42 h-42" @click="backClick"></image>
+        <text class="text-27 color-white fw-600">如何启用家庭相册</text>
+        <image src="/common/images/info.png" class="w-42 h-42" @click="helpClick"></image>
+      </div>
+      <div class="flex-row w-full justify-between mt-10 mb-20 px-32" id="img-box">
+        <image src="/common/images/step1.png" class="w-172 h-320"></image>
+        <image src="/common/images/step2.png" class="w-172 h-320"></image>
+        <image src="/common/images/step3.png" class="w-172 h-320"></image>
+        <image src="/common/images/step4.png" class="w-172 h-320"></image>
+      </div>
+      <text class="fs-20 lh-30 text-center color-velaWhite">
+        请通过「米家APP-首页-家庭管理-终端家庭屏保」启用家庭屏保功能并选择展示设备
+      </text>
+    </div>
+    <!-- 弹窗 -->
+    <div
+      class="w-346 h-140 absolute top-300 left-228 flex-col justify-center items-center bg-toastGray rounded-30"
+      id="toast"
+      style="display:none"
+    >
+      <text id="toast-text" class="w-286 h-80 fs-30 lh-40 fw-500 corlor-white">请在米家APP或小程序内新增或删除</text>
+    </div>
+  </div>
+</template>
+
+<script>
+/**
+ * @description 相册首页
+ * @author syx
+ * @date 2024-12-17
+ * @LastEditTime 2024-12-17
+ * @LastEditors syx
+ * @param {*}
+ * @return {*}
+ * @example
+ * 
+ */
+import router from "@system.router"
+import miot from "@service.internal.miot"
+
+let tempScrollX = 0
+let timer = null
+let toastTimer = null
+export default {
+  // 页面级组件的数据模型，影响传入数据的覆盖机制：private内定义的属性不允许被覆盖
+  private: {
+    scrollW: 0, // 整个滚动列表宽度(总宽度)
+    data: [], // 每次显示的数据
+    viewW: 800, // 外部宽度
+    itemW: 194, //单项宽度+8px的空隙
+    isUpdateData: false, // 更新数据的通知
+    showNum: 0, // 页面需要显示的数量
+    hasRequest: false, //避免重复请求数据加上flag
+    offsetX: 20, // 动态偏移量- 外层的盒子进行滚动设置
+    lastTime: "", //最新的时间，
+    noData: true, // 相册是否有数据数据
+    start: 0,
+    end: 0
+  },
+  /**
+   * @description 修改相册状态（无图片、有图片、未开启相册）
+   * @returns null
+   */
+  changeAlbumStatus() {
+    const blockStyle = {
+      display: "flex"
+    }
+    const noneStyle = {
+      display: "none"
+    }
+    this.$dom.suspendRenderFlush()
+    console.log("### 🚀Album ~ home.ux ~ changeAlbumStatus ###")
+    const emptyPage = this.$dom.getElementById("empty-page")
+    const root = this.$dom.getElementById("root")
+    if (!this.$app.$def.setDeviceAlbumStatus) {
+      this.$dom.setAttribute(emptyPage, "style", blockStyle)
+      this.$dom.setAttribute(root, "style", noneStyle)
+      console.log("### 🚀Album ~ home.ux ~ 展示图示例 ###")
+      return
+    } else {
+      this.$dom.setAttribute(emptyPage, "style", noneStyle)
+      this.$dom.setAttribute(root, "style", blockStyle)
+    }
+    const saveScreenBtn = this.$dom.getElementById("screen-btn")
+    const noDataDiv = this.$dom.getElementById("nodata-div")
+
+    if (this.noData) {
+      console.log("### 🚀Album ~ home.ux ~ 无数据 ###")
+      this.$dom.setAttribute(noDataDiv, "style", blockStyle)
+      this.$dom.setAttribute(saveScreenBtn, "style", noneStyle)
+    } else {
+      console.log("### 🚀Album ~ home.ux ~ 有数据 ###")
+      this.$dom.setAttribute(noDataDiv, "style", noneStyle)
+      this.$dom.setAttribute(saveScreenBtn, "style", blockStyle)
+    }
+    this.$dom.triggerRenderFlush()
+  },
+  /**
+   * @description onReady
+   */
+  async onReady() {
+    let start = Date.now()
+    console.log("### 🚀Album ~ home page ~ onReady", start - this.$app.$def.time + "ms")
+    this.initPage()
+  },
+  /**
+   * @description initPage初始化页面数据
+   */
+  async initPage() {
+    try {
+      let start = Date.now()
+      // 如果未开启相册
+      if (!this.$app.$def.setDeviceAlbumStatus) {
+        this.noData = true
+        this.changeAlbumStatus()
+        return
+      }
+      // 计算可视化高度中能存几个列表，可以略多余可视化高度能存放的列表数量避免滚动时被替换
+      this.showNum = Math.floor(this.viewW / this.itemW) + 4
+      this.end = this.showNum * 2
+      if (this.$app.$def.thumbnailInfo.length === 0) {
+        // 显示空的哪个图
+        this.noData = true
+        this.changeAlbumStatus()
+        return
+      } else {
+        this.noData = false
+        this.changeAlbumStatus()
+      }
+      this.showNum = Math.floor(this.viewW / this.itemW) + 4
+      this.end = this.showNum * 2
+      // 默认展示的几个数据
+       if (this.end > this.$app.$def.thumbnailInfo.length - 1 && this.$app.$def.isLastPage) {
+        this.showNum = Math.ceil(this.$app.$def.thumbnailInfo.length / 2)
+        this.end = this.$app.$def.thumbnailInfo.length
+      }
+      console.info("### 🚀Album ~ home.ux ~ initPage 计算end成功 ###", Date.now() - start + "ms")
+      this.scrollW = Math.ceil(this.showNum * this.itemW)
+      this.data = this.$app.$def.thumbnailInfo.slice(0, this.end)
+      this.lastTime = new Date().getTime()
+      console.info("### 🚀Album ~ home.ux ~ initPage initPage结束 ###", Date.now() - start + "ms")
+      this.renderAlbumListNode(this.data)
+    } catch (e) {
+      console.log("### 🚀Album ~ home page ~ initPage error ###", e)
+    }
+  },
+  /**
+   * @description onShow
+   */
+  async onShow() {
+    console.log("### 🚀Album ~ home page ~ onShow isScreensaver", this.$app.$def.isScreensaver)
+    const saveScreenBtn = this.$dom.getElementById("screen-btn")
+    let text = this.$app.$def.isScreensaver ? "已设为屏保" : "设为屏保"
+    this.$dom.setAttribute(saveScreenBtn, "value", text)
+  },
+  // 增加图片的方法
+  renderAlbumListNode(listData) {
+    let start = Date.now()
+    const root = this.$dom.getElementById("root")
+    const imageAdd = this.$dom.getElementById("image-add-box")
+    this.$dom.suspendRenderFlush() // 标识接下来的domaction为非立即更新
+    const imageScroll = this.$dom.createElement(root, "scroll", {
+      id: "image-scroll",
+      scrollX: "true",
+      onscroll: (e) => {
+        this.handleScroll(e)
+      },
+      style: {
+        width: `${this.viewW}px`
+      },
+      classList: ["flex-col", "h-388", "relative"]
+    })
+    this.$dom.insertBefore(root, imageScroll, imageAdd)
+
+    const widthContent = this.$dom.createElement(imageScroll, "div", {
+      id: "width-content",
+      classList: ["flex-col", "h-full"],
+      style: {
+        width: `${this.scrollW}px`,
+        transform: JSON.stringify({
+          translateX: `${this.offsetX}px`
+        })
+      }
+    })
+    // 把这个可以撑开宽度的盒子放入scroll中
+    this.$dom.appendChild(imageScroll, widthContent)
+    // 一个可以撑开宽度的盒子
+    const widthBox = this.$dom.createElement(widthContent, "div", {
+      id: "width-box",
+      classList: ["flex-wrap", "flex-col", "overflow-hidden"]
+    })
+    // 把这个可以撑开宽度的盒子放入scroll中
+    this.$dom.appendChild(widthContent, widthBox)
+    /**
+     * 获取到id的名字 创建一个元素 再循环创建子孩子给这个元素
+     * 怎么让图片竖着排列，可以用flex布局
+     */
+    for (let i = 0; i < listData.length; i++) {
+      let elem = this.$dom.createElement(widthBox, "div", {})
+      this.$dom.appendChild(widthBox, elem)
+      let item = listData[i]
+      let img = this.createdImage(elem, item, i)
+      this.$dom.appendChild(elem, img)
+    }
+    const saveScreenBtn = this.$dom.getElementById("screen-btn")
+    let text = this.$app.$def.isScreensaver ? "已设为屏保" : "设为屏保"
+    this.$dom.setAttribute(saveScreenBtn, "value", text)
+    this.$dom.triggerRenderFlush() // 将缓存的dom整体进行渲染renderFlush
+  },
+  /**
+   * 相册滑动事件方法 虚拟滚动
+   * @param {*} e 
+   */
+  async handleScroll(e) {
+    // 控制滚动时间间隔
+    if (new Date().getTime() - this.lastTime > 10) {
+      let scrollLeft = e.scrollX //滚动的宽度
+      let offsetX = scrollLeft - (scrollLeft % this.itemW)
+      let start
+      let end
+      let flag = false
+      // 左滑
+      if (tempScrollX < scrollLeft) {
+        // 每一次滚动后 根据scrollLeft值获取一个可以整除itemW结果进行偏移
+        if (scrollLeft < this.itemW * 3) return
+        let num = Math.floor((scrollLeft - 20) / this.itemW)
+        offsetX = (num - 2) * this.itemW
+        this.offsetX = offsetX
+        start = (num - 2) * 2
+        end = (num - 2 + this.showNum) * 2
+        if (
+          this.$app.$def.isLastPage &&
+          start > this.$app.$def.thumbnailInfo.length - this.showNum * 2 + 1
+        )
+          return
+        // 如果值不相等就更新
+        if (this.start !== start) {
+          if (end + 2 >= this.$app.$def.thumbnailInfo.length && !this.$app.$def.isLastPage) {
+            // 请求数据
+          } else if (end >= this.$app.$def.thumbnailInfo.length && this.$app.$def.isLastPage) {
+            // 处理一下数据 为啥之前这里加了1
+            end = this.$app.$def.thumbnailInfo.length
+          }
+          if (this.end !== end && end <= this.$app.$def.thumbnailInfo.length) {
+            this.data = this.$app.$def.thumbnailInfo.slice(start, end)
+            flag = true
+          }
+        }
+        // 右滑
+      } else if (tempScrollX > scrollLeft) {
+        if (offsetX < this.itemW * 2) return
+        let num = Math.floor((scrollLeft - 20) / this.itemW)
+        offsetX = (num - 2) * this.itemW
+        this.offsetX = offsetX
+        start = (num - 2) * 2
+        end = (num - 2 + this.showNum) * 2
+        // 如果值不相等就更新
+        if (this.start != start && start >= 0) {
+          this.data = this.$app.$def.thumbnailInfo.slice(start, end)
+          flag = true
+        }
+      }
+      if (flag) {
+        // 更新图片的src
+        this.$dom.suspendRenderFlush() // 标识接下来的domaction为非立即更新
+        this.updateranslateX()
+        this.updateImageSrc(start)
+        this.$dom.triggerRenderFlush() // 将缓存的dom整体进行渲染renderFlush
+        this.lastTime = new Date().getTime() //更新最新时间
+        this.start = start
+        this.end = end
+        flag = false
+      }
+      tempScrollX = e.scrollX
+    }
+  },
+  /**
+   * 更新图片的src
+   * @param {*} start 
+   */
+  updateImageSrc(start) {
+    try{
+    let index = start
+    for (let i = 0; i < this.showNum * 2; i++) {
+      const image = this.$dom.getElementById(`image_${i}`)
+      let  imgSrc = this.data[i] && this.data[i].imgUrl || "/common/images/bg-default.png"
+      this.$dom.setAttribute(image, "src", imgSrc)
+      if (!this.data[i]) {
+        this.$dom.setAttribute(image, "alt", "/common/images/bg-default.png")
+        this.$dom.addEventListener(image, "click", (e) => {
+          return
+        })
+      } else {
+        this.$dom.setAttribute(image, "alt", "/common/images/default.png")
+        this.$dom.addEventListener(image, "click", (e) => {
+          // 点击后进入图片详情
+          this.imageDetailClick(index, this.data[i], e)
+        })
+      }
+      this.$dom.addEventListener(image, "longpress", (e) => {
+        // 长按弹出toast提示
+        this.longpressClick(index, this.data[i], e)
+      })
+      index += 1
+    }
+    }
+    catch(e){
+      console.error("====updateImageSrc error========================",e)
+    }
+  },
+  /**
+   * 修改width-box的translateX（）
+   */
+  updateranslateX() {
+    const widthBox = this.$dom.getElementById("width-content")
+    console.log("🚀------------修改offsetX", this.offsetX)
+    this.$dom.setAttribute(widthBox, "style", {
+      transform: JSON.stringify({
+        translateX: `${this.offsetX + 20}px`
+      })
+    })
+  },
+  /**
+   * 创建图片
+   * @param {*} root 根节点
+   * @param {*} item 子节点
+   * @param {*} idx 
+   */
+  createdImage(root, item, idx) {
+    let image = this.$dom.createElement(root, "image", {
+      id: `image_${idx}`,
+      classList: ["image-fit"],
+      src: item.imgUrl || '',
+      alt: "/common/images/default.png",
+      onclick: (e) => {
+        // 点击后进入图片详情
+        this.imageDetailClick(idx, item, e)
+      },
+      onlongpress: (e) => {
+        // 长按弹出toast提示
+        this.longpressClick(idx, item, e)
+      }
+    })
+    return image
+  },
+  /**
+   * 返回
+   */
+  backClick() {
+    router.back()
+  },
+  /**
+   * 点击图片详情
+   * @param {*} index 
+   * @param {*} item 
+   * @param {*} e 
+   */
+  imageDetailClick(index, item, e) {
+    router.push({
+      uri: "pages/preview",
+      params: {
+        index: item?.id
+      }
+    })
+  },
+  /**
+   * 点击跳转到屏保
+   */
+  saveAsScreensaver() {
+    router.push({
+      uri: "pages/screenSaver"
+    })
+  },
+  /**
+   * 长按弹出toast提示
+   * @param {*} index 
+   * @param {*} item 
+   */
+  longpressClick(index, item) {
+    this.changeToastStatus(true)
+    if(toastTimer) clearTimeout(toastTimer)
+    toastTimer = setTimeout(() => {
+      this.changeToastStatus(false)
+    }, 2000)
+  },
+  // 控制toast的隐藏和显示
+  changeToastStatus(isShow) {
+    const toast = this.$dom.getElementById("toast")
+    let obj = {display: isShow ? "flex" : "none"}
+    this.$dom.setAttribute(toast, "style", obj)
+  },
+  /**
+   * 添加图片
+   */
+  addClick() {
+    miot.recordEvents({
+      events: [
+        {
+          key: "photo_click",
+          value: "add"
+        }
+      ]
+    })
+    router.push({
+      uri: "pages/upload"
+    })
+  },
+  /**
+   * 帮助
+   */
+  helpClick() {
+    miot.recordEvents({
+      events: [
+        {
+          key: "photo_click",
+          value: "QA"
+        }
+      ]
+    })
+    router.push({
+      uri: "pages/manual"
+    })
+  },
+  /**
+   * 销毁组件
+   */
+  onDestroy() {
+    if (timer) {
+      clearTimeout(timer)
+    }
+    if(toastTimer) clearTimeout(toastTimer)
+  }
+}
+</script>
+
+<style>
+.image-fit {
+  width: 186px;
+  height: 186px;
+  object-fit: cover;
+  margin: 0px 8px 8px 0px;
+}
+
+</style>

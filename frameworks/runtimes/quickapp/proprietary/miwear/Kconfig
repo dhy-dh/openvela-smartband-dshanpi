@@ -1,0 +1,24 @@
+# Internal miwear Kconfig - not included in open source release
+
+if QUICKAPP_PROPRIETARY
+
+config QUICKAPP_MIWEAR
+	bool "miwear library"
+	default n
+	depends on MIWEAR_APPS
+	---help---
+	compiled as libframework.a and used by miwear launcher.
+
+config QUICKAPP_PRODUCT_MIWEAR
+	bool "miwear features"
+	default y
+	depends on (USE_QUICKJS && MIWEAR_APPS)
+	---help---
+	enable miwear features
+
+config APP_BAIDU_MAP
+	bool "enable baidu map module"
+	default n
+	depends on (QJS_EXTENDS && MIWEAR_APPS)
+
+endif # QUICKAPP_PROPRIETARY

@@ -1,0 +1,93 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config TELEPHONY
+	tristate "Enable telephony library"
+	default n
+	depends on LIBUV && LIB_DBUS && KVDB
+	---help---
+		Enable telephony library
+
+if TELEPHONY
+
+config MODEM_ACTIVE_COUNT
+	int "active modem count"
+	default 1
+	range 1 2
+
+config MODEM_PATH
+	string "modem path"
+	default "/ril_0"
+	---help---
+		The modem path
+
+config MODEM_PATH_2
+	string "modem path 2"
+	default "/ril_1"
+	depends on MODEM_ACTIVE_COUNT = 2
+	---help---
+		The modem path 2
+
+config MODEM_ABNORMAL_EVENT
+	bool "support modem abnormal event"
+	default y
+	---help---
+		enable/disable modem abnormal event feature
+
+config SUPPRESS_CP_MESSAGE
+	bool "support suppress cp message"
+	default y
+	---help---
+		enable/disable suppress cp message feature
+
+config SIGNAL_REPORT_THRESHOLD
+	bool "support signal report threshlod"
+	default y
+	---help---
+		enable/disable signal report threshlod feature
+
+config TELEPHONY_DFX
+	bool "data tracking over dfx"
+        default n
+	---help---
+		data tracking way,over DFX when y,over callback when n
+endif
+
+config TELEPHONY_TOOL
+	bool "Telephony tool"
+	default n
+
+config TELEPHONY_TEST
+	bool "enable telephony test"
+	default n
+	depends on TELEPHONY && TESTING_CMOCKA
+
+if TELEPHONY_TOOL
+
+config TELEPHONY_TOOL_STACKSIZE
+	int "Telephony tool stack size"
+	default 16384
+
+config TELEPHONY_TOOL_PRIORITY
+	int "Telephony tool priority"
+	default 100
+
+endif
+
+if TELEPHONY_TEST
+
+config TELEPHONY_TEST_PRIORITY
+	int "cmocka_telephony_test priority"
+	default 99
+
+config TELEPHONY_TEST_STACKSIZE
+	int "cmocka_telephony_test stack size"
+	default 16384
+
+config TEST_PHONE_NUMBER
+	string "test phone number"
+	default "10086"
+
+endif

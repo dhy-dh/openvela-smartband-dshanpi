@@ -1,0 +1,39 @@
+cc_defaults {
+    name: "vibrator_defaults",
+    shared_libs: [
+        "libcutils"
+    ],
+    static_libs: [
+        "libvibrator_api"
+    ],
+    proprietary: true,
+}
+
+cc_library_headers {
+    name: "libvibrator_api_headers",
+    export_include_dirs: ["."],
+    proprietary: true
+}
+
+cc_library_static {
+    name: "libvibrator_api",
+    srcs: [
+        "vibrator_api.c",
+    ],
+    cflags: [
+        "-DCONFIG_VIBRATOR_SERVER_CPUNAME=\"ap\""
+    ],
+    header_libs: [
+        "nuttx_libc_headers",
+        "kernel_modules_headers",
+    ],
+    proprietary: true
+}
+
+cc_binary {
+    name: "vibrator_test",
+    srcs: ["vibrator_test.c"],
+    defaults: ["vibrator_defaults"],
+    static_libs: ["libkvdb_vendor"],
+    proprietary: true
+}

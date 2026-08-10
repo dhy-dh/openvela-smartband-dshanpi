@@ -1,0 +1,216 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config MEDIA
+	tristate "Enable media"
+	default n
+
+if MEDIA
+
+choice
+	prompt "MEDIA log level"
+	default MEDIA_LOG_INFO
+
+config MEDIA_LOG_DEBUG
+	bool "MEDIA_LOG_DEBUG"
+
+config MEDIA_LOG_INFO
+	bool "MEDIA_LOG_INFO"
+
+config MEDIA_LOG_WARN
+	bool "MEDIA_LOG_WARN"
+
+config MEDIA_LOG_ERR
+	bool "MEDIA_LOG_ERR"
+
+config MEDIA_LOG_SLIENT
+	bool "MEDIA_LOG_SLIENT"
+
+endchoice
+
+config MEDIA_SERVER
+	bool "Enable media server"
+	default n
+	depends on EVENT_FD
+
+if MEDIA_SERVER
+
+config MEDIA_SERVER_CONFIG_PATH
+	string "Media server configure file path"
+	default "/etc/media/"
+
+config MEDIA_SERVER_PROGNAME
+	string "Media server name"
+	default "mediad"
+
+config MEDIA_SERVER_STACKSIZE
+	int "Media server stack size"
+	default 81920
+
+config MEDIA_SERVER_PRIORITY
+	int "Media server priority"
+	default 245
+
+config MEDIA_GRAPH
+	bool "Enable media graph"
+	default y
+	depends on LIB_FFMPEG
+
+config MEDIA_POLICY
+	bool "Enable media policy"
+	default y
+	depends on LIB_PFW
+
+config MEDIA_FOCUS
+	bool "Enable media focus"
+	default n
+
+config MEDIA_TRACE
+	bool "Enable media trace"
+	default n
+
+config MEDIA_GRAPH_SIZE_MAX
+	int "Max graph file size"
+	default 4096
+
+config MEDIA_SERVER_MAXCONN
+	int "Max socket connections"
+	default 16
+
+config MEDIA_SERVER_MAX_POLLFDS
+	int "Max poll fd counts"
+	default 64
+
+config MEDIA_SERVER_PORT
+	int "Media server AF_INET listening port"
+	default -1
+
+config MEDIA_PLAYER_MAX_CNT
+	int "Media player max count"
+	default 10
+
+config MEDIA_PLAYER_CMD_QUEUE_SIZE
+	int "Media player cmd queue size"
+	default 16
+
+config MEDIA_PLAYER_DATA_QUEUE_SIZE
+	int "Media player data queue size"
+	default 6
+
+config MEDIA_PLAYER_MAX_POLLFDS
+	int "Media player max pollfds"
+	default 4
+
+config MEDIA_PLAYER_STACKSIZE
+	int "Media player stack size"
+	default 61440
+
+config MEDIA_PLAYER_PRIORITY
+	int "Media player priority"
+	default 215
+
+config MEDIA_RECORDER_MAX_CNT
+	int "Media recorder max count"
+	default 10
+
+config MEDIA_RECORDER_CMD_QUEUE_SIZE
+	int "Media recorder cmd queue size"
+	default 16
+
+config MEDIA_RECORDER_DATA_QUEUE_SIZE
+	int "Media recorder data queue size"
+	default 4
+
+config MEDIA_RECORDER_STACKSIZE
+	int "Media recorder stack size"
+	default 61440
+
+config MEDIA_RECORDER_PRIORITY
+	int "Media recorder priority"
+	default 244
+
+if MEDIA_FOCUS
+
+config MEDIA_FOCUS_STACK_DEPTH
+	int "Media focus configurable stack size"
+	default 8
+
+config MEDIA_FOCUS_SUGGESTION_TIME_OUT
+	int "Media focus configurable suggestion time out with ms"
+	default 1000
+
+endif # MEDIA_FOCUS
+
+endif # MEDIA_SERVER
+
+config MEDIA_SERVER_CPUNAME
+	string "Media server CPU name, for distributed server, use list like 'ap,audio'"
+	default "local"
+
+config MEDIA_TOOL
+	bool "Media tool"
+	default n
+
+if MEDIA_TOOL
+
+config MEDIA_TOOL_STACKSIZE
+	int "Media tool stack size"
+	default 16384
+
+config MEDIA_TOOL_PRIORITY
+	int "Media tool priority"
+	default 100
+
+endif # MEDIA_TOOL
+
+config MEDIA_PROXY_LISTEN_STACKSIZE
+	int "Media proxy listen thread stack size"
+	default 4096
+
+config MEDIA_PROXY_LISTEN_PRIORITY
+	int "Media proxy listen thread priority"
+	default 100
+
+endif # MEDIA
+
+config MEDIA_TRIGGER
+	bool "Enable media trigger server"
+	default n
+
+if MEDIA_TRIGGER
+
+config MEDIA_TRIGGER_PRIORITY
+	int "Media trigger priority"
+	default 100
+
+config MEDIA_TRIGGER_STACKSIZE
+	int "Media trigger stack size"
+	default 10240
+
+config MEDIA_TRIGGER_MAX_MODEL_NUM
+	int "Media trigger max model num support"
+	default 10
+
+config MEDIA_TRIGGER_DUMP
+	bool "Enable media trigger audio dump for debugging"
+	default n
+	help
+		Enable this option to dump audio input buffers to file for debugging.
+		Audio data will be saved to the path specified by MEDIA_TRIGGER_DUMP_PATH.
+
+if MEDIA_TRIGGER_DUMP
+
+config MEDIA_TRIGGER_DUMP_PATH
+	string "Media trigger audio dump directory path"
+	default "/data"
+	help
+		Specify the directory path for dumping media trigger audio input data.
+		File will be named: media_trigger_input.pcm
+
+endif # MEDIA_TRIGGER_DUMP
+
+endif # MEDIA TRIGGER
+
+osource "$APPSDIR/frameworks/multimedia/media/pfw/Kconfig"

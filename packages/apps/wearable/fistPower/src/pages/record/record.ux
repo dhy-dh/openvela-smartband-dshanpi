@@ -1,0 +1,107 @@
+<import name="number" src="../../common/number.ux"></import>
+<template>
+	<div class="page-wrap">
+		<div class="demo-page result-wrap">
+			<div class="max-power item-center">
+				<text class="title">击打记录</text>
+				<text class="gray">最大力度(G)</text>
+				<number class="num" value="{{maxPower}}"></number>
+			</div>
+			<div class="max-power item-center">
+				<text class="gray">最大速度(毫秒)</text>
+				<number class="num" value="{{maxSpeed}}"></number>
+			</div>
+			<div class="item-center again-btn">
+				<div class="c-btn" onclick="jump('/pages/loading')">
+					<text class="c-btn-txt">开始游戏</text>
+				</div>
+			</div>
+		</div>
+	</div>
+</template>
+
+<script>
+import router from "@system.router";
+import storage from "@system.storage";
+const formatNumber = global.formatNumber;
+export default {
+	private: {
+		maxPower: "",
+		maxSpeed: "",
+	},
+	onInit() {
+		storage.get({
+			key: "maxPower",
+			success: (data) => {
+				if (data) {
+					this.maxPower = formatNumber(data);
+				}
+			},
+		});
+		storage.get({
+			key: "maxSpeed",
+			success: (data) => {
+				if (data) {
+					this.maxSpeed = formatNumber(data);
+				}
+			},
+		});
+	},
+	jump(path) {
+		router.replace({
+			uri: path,
+		});
+	},
+};
+</script>
+
+<style>
+.result-wrap {
+	align-items: left;
+	position: relative;
+}
+
+.item-center {
+	align-items: center;
+}
+
+.title {
+	margin-top: 26px;
+	margin-bottom: 26px;
+}
+
+.max-num {
+	padding-top: 20px;
+	flex-direction: column;
+	/* align-items: left;
+	text-align: left; */
+}
+
+.max-power {
+	width: 100%;
+	flex-direction: column;
+	margin-top: 10px;
+}
+
+.again-btn {
+	margin-top: 30px;
+	width: 100%;
+	flex-direction: column;
+}
+
+.gray {
+	color: #777;
+}
+
+.res-tag {
+	position: absolute;
+	right: 5px;
+	top: 60px;
+}
+
+@media (shape: pill-shaped) {
+	.gray {
+		font-size: 24px;
+	}
+}
+</style>

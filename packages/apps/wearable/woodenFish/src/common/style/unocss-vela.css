@@ -1,0 +1,16 @@
+/* layer: default */
+.fw-450{font-weight:450;}
+.text-center{text-align:center;}
+.text-white{color:rgba(255,255,255,1);}
+.flex-col{flex-direction:column;}
+.absolute,
+.position-absolute{position:absolute;}
+.fs-20{font-size:20px;}
+.fs-28{font-size:28px;}
+.h-80{height:80px;}
+.w-100{width:100px;}
+.justify-center{justify-content:center;}
+.items-center{align-items:center;}
+.bottom-10{bottom:10px;}
+.bottom-100{bottom:100px;}
+.ease{transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);}

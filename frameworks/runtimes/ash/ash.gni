@@ -1,0 +1,3 @@
+declare_args() {
+  ash_zlib_target = ""
+}

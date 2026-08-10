@@ -1,0 +1,10 @@
+node_modules
+out
+package-lock.json
+*.swo
+*.o
+tsshell
+*.so
+*.js
+*.bak
+*.swp

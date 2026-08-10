@@ -1,0 +1,89 @@
+# ##############################################################################
+# frameworks/graphics/uikit/test/CMakeLists.txt
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more contributor
+# license agreements.  See the NOTICE file distributed with this work for
+# additional information regarding copyright ownership.  The ASF licenses this
+# file to you under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License.  You may obtain a copy of
+# the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+# License for the specific language governing permissions and limitations under
+# the License.
+#
+# ##############################################################################
+
+if(CONFIG_UIKIT_DEMO)
+  nuttx_add_prebuilt(APP_TARGETS uikit_demo)
+
+  set(INCDIR)
+  list(APPEND INCDIR ${NUTTX_APPS_DIR}/graphics/lvgl)
+  set(CSRCS uikit_demo.c)
+
+  if(CONFIG_UIKIT_DEMO_VIDEO)
+    file(GLOB CSRCS_VIDEO_EXAMPLE "video/*.c")
+    list(APPEND CSRCS ${CSRCS_VIDEO_EXAMPLE})
+  endif()
+
+  if(CONFIG_UIKIT_DEMO_FONT_STRESS)
+    file(GLOB CSRCS_FONT_EXAMPLE "font/*.c")
+    list(APPEND CSRCS ${CSRCS_FONT_EXAMPLE})
+  endif()
+
+  if(CONFIG_UIKIT_DEMO_VECTOR_DRAW)
+    file(GLOB_RECURSE CSRCS_VECTOR_DRAW "draw/*.c")
+    list(APPEND CSRCS ${CSRCS_VECTOR_DRAW})
+  endif()
+
+  if(CONFIG_UIKIT_MARKDOWN)
+    file(GLOB_RECURSE CSRCS_MARKDOWN "markdown/*.c")
+    list(APPEND CSRCS ${CSRCS_MARKDOWN})
+    list(APPEND INCDIR ${NUTTX_APPS_DIR}/external/cmark-gfm)
+    list(APPEND INCDIR ${NUTTX_APPS_DIR}/external/cmark-gfm/cmark-gfm/src)
+    list(APPEND INCDIR ${NUTTX_APPS_DIR}/external/cmark-gfm/cmark-gfm/extensions)
+  endif()
+
+  if(CONFIG_UIKIT_DEMO_TIME_OBJCREATION)
+    file(GLOB_RECURSE CSRCS_TIME_OBJCREATION "creation/*.c")
+    list(APPEND CSRCS ${CSRCS_TIME_OBJCREATION})
+  endif()
+
+  if(CONFIG_UIKIT_DEMO_BENCHMARK)
+    file(GLOB_RECURSE CSRCS_BENCHMARK
+      "benchmark/*.c"
+      "benchmark/assets/*.c")
+    list(APPEND CSRCS ${CSRCS_BENCHMARK})
+  endif()
+
+  if(CONFIG_UIKIT_KEYBOARD)
+    file(GLOB_RECURSE CSRCS_KEYBOARD "keyboard/*.c")
+    list(APPEND CSRCS ${CSRCS_KEYBOARD})
+  endif()
+
+  if(CONFIG_UIKIT_DEMO_INPUT)
+    file(GLOB_RECURSE CSRCS_INPUT "input/*.c")
+    list(APPEND CSRCS ${CSRCS_INPUT})
+  endif()
+
+  nuttx_add_application(
+    NAME
+    uikit_demo
+    PRIORITY
+    ${CONFIG_UIKIT_DEMO_PRIORITY}
+    STACKSIZE
+    ${CONFIG_UIKIT_DEMO_STACKSIZE}
+    MODULE
+    ${CONFIG_UIKIT_DEMO}
+    INCLUDE_DIRECTORIES
+    ${INCDIR}
+    DEPENDS
+    lvgl
+    SRCS
+    ${CSRCS})
+endif()
+

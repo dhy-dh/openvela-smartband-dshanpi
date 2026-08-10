@@ -1,0 +1,70 @@
+module simple@1.0
+
+string foo()
+int bar(int a, float b = 5.0)
+double goo(double a=3.0)
+void doo()
+void hoo(string a)
+
+struct Chapter {
+    int page_count;
+    string title;
+    boolean is_end;
+}
+
+void set_chapter(Chapter chap);
+Chapter get_chapter();
+void set_chapter_array(Chapter[] chap);
+Chapter[] get_chapter_array();
+
+callback chapter_changed(int index, string title)
+struct Book {
+    string book_name;
+    Chapter chap_1;
+    chapter_changed chap_changed;
+    jsonobject book_info = null;
+    jsonobject[] chaps_info = null;
+}
+void set_book(Book book);
+Book get_book();
+
+callback moo_cb(int x, string y, double z)
+void moo(int a, moo_cb cb)
+
+promise<int> noo(boolean resolve)
+promise<string> poo(boolean resolve)
+
+interface Animal {
+  property string name;
+  property int legCount readonly;
+  int eatFoods(string[] foods);
+  string run(int distance, string destination);
+}
+[ctor="true", target="dog"] Animal createDog(int type);
+
+interface Flyable {
+  string[] fly();
+  property string breed;
+}
+[ctor="true", target="airplane"] Flyable createAirplane();
+
+interface Bird extends Animal, Flyable {
+  property int weight;
+  promise<string[]> walk();
+}
+[ctor="true", target="pigeon"] Bird createPigeon();
+
+Animal createCat();
+void setAnimal(Animal animal);
+
+event data_changed(string data);
+event state_changed(int status);
+void invoke_event(string event_name);
+
+void set_buffer(arraybuffer buff);
+arraybuffer get_buffer_copy();
+arraybuffer get_buffer_no_copy();
+
+void set_buffer_array(arraybuffer[] buff_array);
+arraybuffer[] get_buffer_array_copy();
+arraybuffer[] get_buffer_array_no_copy();

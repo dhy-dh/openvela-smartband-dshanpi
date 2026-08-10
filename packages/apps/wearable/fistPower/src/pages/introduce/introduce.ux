@@ -1,0 +1,70 @@
+<import name="number" src="../../common/number.ux"></import>
+<template>
+	<div class="page-wrap">
+		<div class="demo-page result-wrap">
+			<text class="txt page-title">说明</text>
+			<text class="txt page-cont">拳力挑战是一款测试出拳力度和速度的小游戏，玩家佩戴手环，用力挥出一拳，即可获得本次出拳效果。</text>
+			<div class="item-center sub-logo">
+				<img class="max-power-title" src="../../common/sub_logo.png" />
+			</div>
+			<div class="item-center back-btn">
+				<div class="c-btn" onclick="jump('/pages/index')">
+					<text class="c-btn-txt">返回</text>
+				</div>
+			</div>
+		</div>
+	</div>
+</template>
+
+<script>
+import router from "@system.router";
+export default {
+	private: {},
+	jump(path) {
+		router.replace({
+			uri: path,
+		});
+	},
+};
+</script>
+
+<style>
+.page-title {
+	width: 100%;
+	text-align: center;
+	font-weight: bold;
+}
+
+.page-cont {
+	padding-top: 10px;
+	white-space: normal;
+}
+
+.sub-logo {
+	padding-top: 30px;
+	height: 75px;
+}
+
+.result-wrap {
+	align-items: left;
+	position: relative;
+	padding: 40px 10px 10px 14px;
+}
+.item-center {
+	width: 100%;
+	align-items: center;
+	justify-content: center;
+}
+
+.item-top {
+	align-items: start;
+}
+
+.back-btn {
+	margin-top: 10px;
+	width: 100%;
+	flex-direction: column;
+	height: 80px;
+	flex-grow: 1;
+}
+</style>

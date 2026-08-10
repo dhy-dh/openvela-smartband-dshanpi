@@ -1,0 +1,7 @@
+*.o
+*.built
+*.depend
+*.dep
+*.su
+aidl/*/*/*.h
+aidl/*/*/*.cpp

@@ -1,0 +1,47 @@
+#
+# Copyright (C) 2023 Xiaomi Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+config SYSTEM_SERVER
+	tristate "Enable System Server"
+	default n
+	depends on ANDROID_BINDER
+	depends on LIBUV
+
+if SYSTEM_SERVER
+config SYSTEM_SERVER_LITE
+    bool "System server Single-Instance Rendering Mode"
+    default n
+    depends on !LV_ENABLE_GLOBAL_CUSTOM
+    depends on LIBASH
+
+config SYSTEM_SERVER_APP_STACKSIZE
+	int "systemd and app default stack size"
+	default 16384
+
+config SYSTEM_SERVER_STACKSIZE
+	int "System server stack size"
+	default SYSTEM_SERVER_APP_STACKSIZE
+
+config SYSTEM_SERVER_PRIORITY
+	int "System server priority"
+	default 100
+
+config SYSTEM_SERVER_USE_PROFILER
+    bool "Runtime profiler"
+    default n
+    depends on ANDROID_LIBUTILS
+
+endif

@@ -1,0 +1,24 @@
+<template>
+  <!-- <div class="contanier-wrapper"> -->
+    <div class="container">
+      <div class="level-box vertical-center" @click="goLevel(10)">
+        <text class="level-text">初级</text>
+      </div>
+      <div class="level-box vertical-center" @click="goLevel(20)">
+        <text class="level-text">中级</text>
+      </div>
+      <div class="level-box vertical-center" @click="goLevel(20)">
+        <text class="level-text">高级</text>
+      </div>
+    </div>
+  <!-- </div> -->
+</template>
+
+<script>
+import page from "./index"
+export default page
+</script>
+
+<style lang="less">
+@import "./index.less";
+</style>

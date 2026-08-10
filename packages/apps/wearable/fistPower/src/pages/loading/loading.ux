@@ -1,0 +1,102 @@
+<template>
+	<div class="page-wrap">
+		<div class="demo-page">
+			<img class="loading-num" src="{{imgSrc}}" />
+			<div class="text-wrap">
+				<text class="txt">倒计时结束时用力</text>
+				<text class="txt">挥出一拳</text>
+			</div>
+		</div>
+	</div>
+</template>
+
+<script>
+import router from "@system.router";
+import vibrator from "@system.vibrator";
+import brightness from "@system.brightness";
+export default {
+	private: {
+		text: "loading",
+		imgSrc: "/common/number3.png",
+		number: 3,
+	},
+	onDestroy() {
+		brightness.setKeepScreenOn({
+			keepScreenOn: false,
+			success: function () {
+				console.log("keepScreenOn false");
+			},
+			fail: function (data, code) {
+				console.log(`handling fail, code = ${code}`);
+			},
+		});
+	},
+	onInit() {
+		this.loading();
+		brightness.setKeepScreenOn({
+			keepScreenOn: true,
+			success: function () {
+				console.log("keepScreenOn true");
+			},
+			fail: function (data, code) {
+				console.log(`handling fail, code = ${code}`);
+			},
+		});
+	},
+	loading() {
+		if (this.number >= 1) {
+			vibrator.vibrate({
+				mode: "short",
+			});
+		}
+		setTimeout((_) => {
+			if (this.number > 1) {
+				this.number--;
+				this.imgSrc = "/common/number" + this.number + ".png";
+				this.loading();
+			} else {
+				// return;
+				router.replace({
+					uri: "/pages/result",
+				});
+			}
+		}, 1000);
+	},
+};
+</script>
+
+<style>
+.text-wrap {
+	color: #000;
+	padding-top: 20px;
+	margin-top: 0px;
+	flex-direction: column;
+	justify-content: center;
+	text-align: center;
+}
+
+.txt {
+	text-align: center;
+	font-weight: bold;
+}
+
+.loading-num {
+	width: 112px;
+	height: 240px;
+	margin-top: 100px;
+	text-align: center;
+}
+
+.loading-info {
+	width: 192px;
+	height: 90px;
+	margin-top: 20px;
+}
+
+@media (shape: pill-shaped) {
+	.txt {
+		padding: 0 10px;
+		font-size: 24px;
+	}
+}
+</style>
