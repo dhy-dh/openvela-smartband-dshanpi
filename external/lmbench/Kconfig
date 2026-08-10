@@ -1,0 +1,42 @@
+#
+# Copyright (C) 2023 Xiaomi Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+config BENCHMARK_LMBENCH
+	tristate "Lmbench tool benchmark"
+	default n
+	depends on SCHED_HAVE_PARENT && SCHED_WAITPID && PIPES && ARCH_HAVE_FORK && LIBC_EXECFUNCS
+	---help---
+		Enable lmbench utility
+
+if BENCHMARK_LMBENCH
+config BENCHMARK_LMBENCH_PRIORITY
+	int "lmbench utility priority"
+	default 100
+
+config BENCHMARK_LMBENCH_STACKSIZE
+	int "lmbench utility statcksize"
+	default DEFAULT_TASK_STACKSIZE
+
+config BENCHMARK_LMBENCH_NET
+	bool "enable tcp/udp relative case from lmbench"
+	default n
+	depends on NET && LIBC_NETDB
+
+config BENCHMARK_LMBENCH_CMD_PREFIX
+	string "lmbench cmd prefix"
+	default ""
+endif
+

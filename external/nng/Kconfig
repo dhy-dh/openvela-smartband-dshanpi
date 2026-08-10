@@ -1,0 +1,35 @@
+#
+# Copyright (C) 2020 Xiaomi Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+config NNG
+	bool "enable nng library"
+	default n
+
+if NNG
+
+config NNG_DEFINES
+	string "nng configuration"
+	default "NNG_PLATFORM_POSIX NNG_PROTOCOL_REQREP NNG_PROTOCOL_PUBSUB NNG_TRANSPORT_INPROC"
+
+config NNG_PTHREAD_STACKSIZE
+        int "nng pthread stack size"
+        default 6148
+
+config NNG_DEMO
+	tristate "enable nng demo"
+	default n
+
+endif #NNG

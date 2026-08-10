@@ -1,0 +1,196 @@
+/*
+ * Copyright (C) 2005 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#pragma once
+
+#include <binder/IBinder.h>
+#include <binder/IServiceManager.h>
+#include <binder/RpcServer.h>
+#include <utils/Mutex.h>
+#include <utils/String16.h>
+#include <utils/String8.h>
+
+#include <atomic>
+#include <pthread.h>
+#include <unordered_set>
+#include <set>
+
+// ---------------------------------------------------------------------------
+namespace android {
+
+struct RpcSessionHash {
+    std::size_t operator()(const sp<RpcSession>& session) const
+    {
+        return std::hash<RpcSession*>()(session.get());
+    }
+};
+
+class IPCThreadState;
+
+class ProcessState : public virtual RefBase {
+public:
+    static sp<ProcessState> self();
+    static sp<ProcessState> selfOrNull();
+
+    /* initWithDriver() can be used to configure libbinder to use
+     * a different binder driver dev node. It must be called *before*
+     * any call to ProcessState::self(). The default is /dev/vndbinder
+     * for processes built with the VNDK and /dev/binder for those
+     * which are not.
+     *
+     * If this is called with nullptr, the behavior is the same as selfOrNull.
+     */
+    static sp<ProcessState> initWithDriver(const char* driver);
+
+    sp<IBinder> getContextObject(const sp<IBinder>& caller);
+
+    void startThreadPool();
+    void registerThread(pid_t thread);
+    void unregisterThread(pid_t thread);
+    void insertBBinder(IBinder *binder);
+    int  eraseBBinder(IBinder *binder);
+    void releaseAllBBinder();
+    void requestExit();
+
+#ifdef CONFIG_ANDROID_BINDER_RPC
+    status_t registerRemoteService(const char* name,
+                                   const sp<IBinder>& service, uv_loop_t* loop = nullptr);
+    status_t registerRemoteService(unsigned int port,
+                                   const sp<IBinder>& service,  uv_loop_t* loop = nullptr);
+
+    void registerIncomingSession(const sp<RpcSession>& session);
+#endif
+
+    bool becomeContextManager();
+
+    sp<IBinder> getStrongProxyForHandle(int32_t handle);
+    void expungeHandle(int32_t handle, IBinder* binder);
+
+    void spawnPooledThread(bool isMain);
+
+    status_t setThreadPoolMaxThreadCount(size_t maxThreads);
+    status_t enableOnewaySpamDetection(bool enable);
+    void giveThreadPoolName();
+
+    String8 getDriverName();
+
+    ssize_t getKernelReferences(size_t count, uintptr_t* buf);
+
+    // Only usable by the context manager.
+    // This refcount includes:
+    // 1. Strong references to the node by this and other processes
+    // 2. Temporary strong references held by the kernel during a
+    //    transaction on the node.
+    // It does NOT include local strong references to the node
+    ssize_t getStrongRefCountForNode(const sp<BpBinder>& binder);
+
+    enum class CallRestriction {
+        // all calls okay
+        NONE,
+        // log when calls are blocking
+        ERROR_IF_NOT_ONEWAY,
+        // abort process on blocking calls
+        FATAL_IF_NOT_ONEWAY,
+    };
+    // Sets calling restrictions for all transactions in this process. This must be called
+    // before any threads are spawned.
+    void setCallRestriction(CallRestriction restriction);
+
+    /**
+     * Get the max number of threads that the kernel can start.
+     *
+     * Note: this is the lower bound. Additional threads may be started.
+     */
+    size_t getThreadPoolMaxThreadCount() const;
+
+    enum class DriverFeature {
+        ONEWAY_SPAM_DETECTION,
+    };
+    // Determine whether a feature is supported by the binder driver.
+    static bool isDriverFeatureEnabled(const DriverFeature feature);
+
+private:
+    static sp<ProcessState> init(const char* defaultDriver, bool requireDefault);
+
+    static void onFork();
+    static void parentPostFork();
+    static void childPostFork();
+
+    friend class IPCThreadState;
+    friend class sp<ProcessState>;
+#ifdef CONFIG_ANDROID_SERVICEMANAGER_INPROC
+    friend sp<IServiceManager> defaultServiceManager();
+    sp<IServiceManager> mServiceManager;
+#endif
+
+    explicit ProcessState(const char* driver);
+    ~ProcessState();
+
+    ProcessState(const ProcessState& o);
+    ProcessState& operator=(const ProcessState& o);
+    String8 makeBinderThreadName();
+
+    struct handle_entry {
+        IBinder* binder;
+        RefBase::weakref_type* refs;
+    };
+
+    handle_entry* lookupHandleLocked(int32_t handle);
+
+    String8 mDriverName;
+    int mDriverFD;
+    void* mVMStart;
+
+    // Protects thread count and wait variables below.
+    pthread_mutex_t mThreadCountLock;
+    // Broadcast whenever mWaitingForThreads > 0
+    pthread_cond_t mThreadCountDecrement;
+    // Number of binder threads current executing a command.
+    size_t mExecutingThreadsCount;
+    // Number of threads calling IPCThreadState::blockUntilThreadAvailable()
+    size_t mWaitingForThreads;
+    // Maximum number for binder threads allowed for this process.
+    size_t mMaxThreads;
+    // Time when thread pool was emptied
+    int64_t mStarvationStartTimeMs;
+
+    mutable Mutex mLock; // protects everything below.
+
+    std::vector<handle_entry> mHandleToObject;
+
+    bool mForked;
+    bool mExitRequested;
+    bool mThreadPoolStarted;
+    volatile int32_t mThreadPoolSeq;
+    std::vector<pid_t> mThreadPoolSet;
+    std::vector<IBinder *> mIBinderSet;
+
+#ifdef CONFIG_ANDROID_BINDER_RPC
+    std::vector<sp<RpcServer>> mServers;
+    std::unordered_set<sp<RpcSession>, RpcSessionHash> mSessions;
+#endif
+
+    CallRestriction mCallRestriction;
+
+    pthread_key_t mTLS;
+    std::atomic<bool> mShutdown;
+    std::atomic<bool> mDisableBackgroundScheduling;
+    sp<BBinder> mContextObject;
+};
+
+} // namespace android
+
+// ---------------------------------------------------------------------------

@@ -1,0 +1,19 @@
+version: 2.2.0
+
+sil-kit:
+  participant-name: CANoe4SW_SE
+  config-file-path: ../CANoe_SILKit_config.silkit.yaml
+databases:
+  - name: CAN_DB
+    file-path: ../databases/CAN_DB.dbc
+
+canfd-networks:
+  - name: CAN1    
+    mapping: external-sil-kit
+    database: CAN_DB
+
+simulation-nodes:
+  - name: SilKitDummyNode
+    network-assignments:
+      - network: CAN1
+    database-node: false

@@ -1,0 +1,191 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config OFONO
+	tristate "Open Source Telephony"
+	depends on LIB_DBUS && LIB_GLIB
+	default n
+	---help---
+		Ofono is a telephony host stack specifically targeted at
+		mobile embedded and desktop systems.
+
+if OFONO
+
+config OFONO_PRIORITY
+	int "Ofono daemon task priority"
+	default 100
+
+config OFONO_STACKSIZE
+	int "Ofono daemon stack size"
+	default 9216
+
+config OFONO_RILMODEM
+	bool "Support RIL modem"
+	default n
+	---help---
+		Enable RIL modem.
+
+config OFONO_ATMODEM
+	bool "Support AT modem"
+	default n
+	---help---
+		Enable AT modem driver and support vendor AT modem.
+
+config OFONO_PHONESIM
+	bool "Support phonesim modem"
+	default n
+	depends on OFONO_ATMODEM
+	---help---
+		Enable phone simulator
+
+config OFONO_HUAWEIMODEM
+	bool "Support huawemi at modem"
+	default n
+	depends on OFONO_ATMODEM
+	---help---
+		Enable huawei AT modem driver.
+
+config OFONO_UNITTEST
+	bool "Support unit test"
+	default n
+	depends on OFONO_RILMODEM
+	---help---
+		Enable unit test for ofono.
+
+config OFONO_SYSCONF_DIR
+	string "The direcory for system configuration files"
+	default "/etc/ofono"
+	---help---
+		Directory for the system configuration files.
+
+config OFONO_PLUGIN_DIR
+	string "The direcory for loading plugins"
+	---help---
+		Directory for the loading plugins.
+
+config OFONO_RIL_STRIP_MF_ID
+	bool "Strip MF ID from SIM file path for SELECT command"
+	default n
+	depends on OFONO_RILMODEM
+	---help---
+		Some modems (e.g., MediaTek) strictly adhere to the ETSI
+		TS 102 221 standard. This standard forbids including the Master
+		File (MF) identifier in the path for a "select by path from MF"
+		command, and these modems will return an error if the MF is
+		present. Enable this option to remove the leading MF ID from the path
+		before sending the command. This ensures compatibility with modems
+		that require this stricter path format. If unsure, leave this
+		disabled (default), as other devices may require the MF ID to be present.
+
+config OFONO_WASM
+	bool "Compile to Wasm"
+	default n
+	---help---
+		Compile ofono to Wasm module instead of builitn app,
+		only available if any wasm runtime eanbled.
+
+config OFONO_WASM_INSTALL_PATH
+	string "The path to install ofono wasm module"
+	default ""
+	depends on OFONO_WASM
+	---help---
+		The path to install ofono wasm module.
+
+config OFONO_DATA_LOG_OVER_MIWEAR
+	bool "support data log over miwear"
+	default n
+	---help---
+		Enable data log over miwear to onetrack
+
+config OFONO_CALL_STATE_CHANGE_WITH_DATA
+	bool "support call state change with data"
+	default n
+	---help---
+		Enable call state change with data.
+
+config OFONO_VOICE_CALL_MANAGER
+	bool "support voice call manager interface"
+	default y
+	---help---
+		Enable voice call manager interface
+
+config OFONO_CALL_BARRING
+	bool "support call barring interface"
+	depends on OFONO_VOICE_CALL_MANAGER
+	default n
+	---help---
+		Enable call barring interface
+
+config OFONO_CALL_FORWARDING
+	bool "support call forwarding interface"
+	depends on OFONO_VOICE_CALL_MANAGER
+	default y
+	---help---
+		Enable call forwarding interface
+
+config OFONO_SUPPLEMENTARY_SERVICES
+	bool "support supplementary services interface"
+	depends on OFONO_VOICE_CALL_MANAGER
+	default n
+        ---help---
+                Enable supplementary services interface
+
+config OFONO_CALL_SETTING
+	bool "support call setting interface"
+	depends on OFONO_VOICE_CALL_MANAGER
+        default y
+        ---help---
+                Enable call setting interface
+
+config OFONO_IMS
+	bool "support ims interface"
+	depends on OFONO_VOICE_CALL_MANAGER
+        default y
+        ---help---
+                Enable ims interface
+
+config OFONO_STK
+	bool "support stk interface"
+	default n
+	---help---
+                Enable stk interface
+
+config OFONO_SMS_MANAGER
+	bool "support message manager interface"
+	default y
+	---help---
+                Enable  message manager interface
+
+config OFONO_CELL_BROADCAST_SERVICE
+	bool "support cell broadcast service interface"
+	default n
+	---help---
+                Enable cell broadcast service interface
+
+config OFONO_PHONEBOOK
+	bool "support phonebook interface"
+	default n
+        ---help---
+                Enable phonebook interface
+
+config OFONO_RIL_NUM_SIM_SLOTS
+	int "support sim slots num"
+	default 1
+	range 1 2
+	---help---
+		Support sim slots num
+
+config OFONO_GPRS_CONTEXT_TYPE
+	string "gprs context type list"
+	default "internet,ims"
+	---help---
+		Gprs context type list
+
+config OFONO_FIVE_SIGNAL_LEVEL
+	bool "support five signal level"
+	default n
+        ---help---
+		Enable five signal level
+endif

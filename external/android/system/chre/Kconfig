@@ -1,0 +1,268 @@
+#
+# Copyright (C) 2023 Xiaomi Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+config CHRE
+	tristate "Context Hub Runtime Environment"
+	default n
+	depends on HAVE_CXX
+	depends on LIBC_DLFCN
+	---help---
+		Enable Context Hub Runtime Environment (CHRE)
+
+if CHRE
+
+config CHRE_SYMTAB_PREFIX
+	string "Prefix of symbols table"
+	default "g_chre_core"
+
+config CHRE_CLIENT_COUNT
+	int "CHRE client count"
+	default 2
+
+config CHRE_RPMSG_SERVER
+	bool "chre rpmsg server support"
+	default n
+	depends on NET_RPMSG
+	---help---
+		chre rpmsg server support
+
+config CHRE_LOCAL_SOCKET_SERVER
+	bool "chre local socket server support"
+	default n
+	depends on NET_LOCAL
+	---help---
+		chre local socket server support
+
+config CHRE_NANOAPP_SAVEPATH
+	string "nanoapp save path"
+	default "/data/chre"
+
+config CHRE_PROGNAME
+	string "Program name of CHRE framework"
+	default "chred"
+
+config CHRE_PRIORITY
+	int "Priority of CHRE"
+	default 100
+
+config CHRE_STACKSIZE
+	int "Stack size of CHRE"
+	default 8192
+
+config CHRE_CLI_APP_MAX
+	int "Max number of CLI param"
+	default 8
+
+config CHRE_APP_SPAMMER_USLEEP
+	int "Suspend time(microseconds) used by apps/spammer"
+	default 1
+
+config CHRE_MESSAGE_TO_HOST_MAX_SIZE
+	int "Maximum size of message sent to host(in bytes)"
+	default 2048
+
+config CHRE_AUDIO_SUPPORT_ENABLED
+	bool "Audio support"
+	default n
+	---help---
+		Audio support
+
+config CHRE_BLE_SUPPORT_ENABLED
+	bool "BLE support"
+	default n
+	---help---
+		BLE support
+
+config CHRE_GNSS_SUPPORT_ENABLED
+	bool "GNSS support"
+	default n
+	depends on UORB_LOOP_MAX_EVENTS != 0
+	---help---
+		GNSS support
+
+config CHRE_SENSORS_SUPPORT_ENABLED
+	bool "Sensors support"
+	default n
+	---help---
+		Sensors support
+
+config CHRE_WIFI_SUPPORT_ENABLED
+	bool "WIFI support"
+	default n
+	---help---
+		WIFI support
+
+config CHRE_WIFI_NAN_SUPPORT_ENABLED
+	bool "WIFI NAN suport"
+	default n
+	---help---
+		WIFI NAN suport
+
+config CHRE_WWAN_SUPPORT_ENABLED
+	bool "WWAN support"
+	default n
+	---help---
+		WWAN support
+
+config CHRE_UNIT_TEST
+	bool "CHRE Unit Test"
+	default n
+	depends on LIB_GOOGLETEST
+	---help---
+		CHRE Unit Test
+
+if CHRE_UNIT_TEST
+
+config CHRE_UNIT_TEST_PROGNAME
+	string "Program name"
+	default "chre_test"
+
+config CHRE_UNIT_TEST_PRIORITY
+	int "Priority"
+	default 100
+
+config CHRE_UNIT_TEST_STACKSIZE
+	int "Stack size"
+	default 12288
+
+endif #CHRE_UNIT_TEST
+
+config CHRE_EXAMPLES
+	bool "CHRE examples"
+	default n
+
+if CHRE_EXAMPLES
+
+config CHRE_EXAMPLES_ALL
+	bool "Enable all examples"
+	default n
+	select CHRE_EXAMPLES_HELLO_WORLD
+	select CHRE_EXAMPLES_TIMER_WORLD
+	select CHRE_EXAMPLES_HOST_ASAKE_WORKD
+	select CHRE_EXAMPLES_BLE_WORLD
+	select CHRE_EXAMPLES_GNSS_WORLD
+	select CHRE_EXAMPLES_MESSAGE_WORLD
+	select CHRE_EXAMPLES_RPC_WORLD
+	select CHRE_EXAMPLES_SENSOR_WORLD
+	select CHRE_EXAMPLES_DEBUG_DUMP_WORLD
+	select CHRE_EXAMPLES_AUDIO_WORLD
+	select CHRE_EXAMPLES_TFLM_DEMO
+	select CHRE_EXAMPLES_WWAN_WORLD
+	select CHRE_EXAMPLES_AUDIO_STRESS_TEST
+	select CHRE_EXAMPLES_WIFI_WORLD
+
+config CHRE_EXAMPLES_HELLO_WORLD
+	bool "hello_workd"
+	default n
+
+config CHRE_EXAMPLES_TIMER_WORLD
+	bool "timer_world"
+	default n
+
+config CHRE_EXAMPLES_HOST_ASAKE_WORKD
+	bool "host_awake_world"
+	default n
+
+config CHRE_EXAMPLES_BLE_WORLD
+	bool "ble_world"
+	depends on CHRE_BLE_SUPPORT_ENABLED
+	default n
+
+config CHRE_EXAMPLES_GNSS_WORLD
+	bool "gnss_world"
+	depends on CHRE_GNSS_SUPPORT_ENABLED
+	default n
+
+config CHRE_EXAMPLES_MESSAGE_WORLD
+	bool "message_world"
+	default n
+
+config CHRE_EXAMPLES_RPC_WORLD
+	bool "rpc_world"
+	default n
+
+config CHRE_EXAMPLES_SENSOR_WORLD
+	bool "sensor_world"
+	depends on CHRE_SENSORS_SUPPORT_ENABLED
+	default n
+
+config CHRE_EXAMPLES_DEBUG_DUMP_WORLD
+	bool "debug_dump_world"
+	default n
+
+config CHRE_EXAMPLES_AUDIO_WORLD
+	bool "audio_world"
+	depends on CHRE_AUDIO_SUPPORT_ENABLED
+	default n
+
+config CHRE_EXAMPLES_TFLM_DEMO
+	bool "tflm_demo"
+	default n
+
+config CHRE_EXAMPLES_WWAN_WORLD
+	bool "wwan_world"
+	depends on CHRE_WWAN_SUPPORT_ENABLED
+	default n
+
+config CHRE_EXAMPLES_AUDIO_STRESS_TEST
+	bool "audio_stress_test"
+	depends on CHRE_AUDIO_SUPPORT_ENABLED
+	default n
+
+config CHRE_EXAMPLES_WIFI_WORLD
+	bool "wifi_world"
+	depends on CHRE_WIFI_SUPPORT_ENABLED
+	default n
+
+endif #CHRE_EXAMPLES
+
+config CHREHOST
+	tristate "CHREHOST"
+	default n
+	depends on NETUTILS_JSONCPP
+	---help---
+		Enable CHREHOST
+
+if CHREHOST
+
+config CHREHOST_TEST
+	bool "chre host Test"
+	default n
+	---help---
+		CHRE HOST Test
+
+config CHREHOST_PROGNAME
+	string "Program name of CHRE framework"
+	default "chredaemon"
+	depends on CHREHOST_TEST
+
+config CHREHOST_PRIORITY
+	int "Priority of CHRE"
+	default 100
+	depends on CHREHOST_TEST
+
+config CHREHOST_STACKSIZE
+	int "Stack size of CHRE"
+	default 8192
+	depends on CHREHOST_TEST
+
+config CHREHOST_PRELOAD_CONFIG
+	string "preload config for chre"
+	default "/etc/chre/product_nanoapps.json"
+
+endif # CHREHOST
+
+endif # CHRE

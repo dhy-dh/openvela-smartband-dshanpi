@@ -1,0 +1,15 @@
+[Unit]
+Description=MTP responder
+StartLimitIntervalSec=0
+
+[Service]
+User=network_fw
+Group=network_fw
+SupplementaryGroups=priv_mediastorage priv_externalstorage
+ExecStart=@BIN_INSTALL_DIR@/@PROJECT_NAME@
+KillMode=process
+SmackProcessLabel=System
+USBFunctionDescriptors=@SYSCONF_DIR@/@PROJECT_NAME@/descs
+USBFunctionStrings=@SYSCONF_DIR@/@PROJECT_NAME@/strs
+RestartSec=3
+Restart=on-failure

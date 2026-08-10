@@ -1,0 +1,104 @@
+#ifndef DDELTA_H
+#define DDELTA_H
+
+#include <stdint.h>
+#include <stdio.h>
+
+/* Fork of BSDIFF that does not compress ctrl, diff, extra blocks */
+#define DDELTA_MAGIC "DDELTA60"
+
+/**
+ * A ddelta file has the following format:
+ *
+ * * the header
+ * * a list of entries
+ */
+struct ddelta_header {
+    char magic[8];
+    uint64_t new_file_size;
+    uint64_t old_file_size;
+    uint32_t old_file_crc;
+    char padding[4]; /* align to 64 bits */
+};
+
+/**
+ * An entry consists of this header, followed by
+ *
+ * 1. 'diff' bytes of diff data
+ * 2. 'extra' bytes of extra data
+ * 3. 'seek' offset to seek in old file
+ *    trigger flush when equals to INT32_MIN:
+ *    a. 'oldcrc' crc of old 'diff' bytes between flush
+ *    b. 'newcrc' crc of new 'diff' and 'extra' bytes between flush
+ */
+#define DDELTA_FLUSH INT32_MIN
+
+struct ddelta_entry_header {
+    union {
+        uint32_t diff;
+        uint32_t oldcrc;
+    };
+    union {
+        uint32_t extra;
+        uint32_t newcrc;
+    };
+    union {
+        int32_t value;
+        uint32_t raw;
+    } seek;
+};
+
+/* Static assertions that the headers have the correct size. */
+typedef int ddelta_assert_header_size[sizeof(struct ddelta_header) == 32 ? 1 : -1];
+typedef int ddelta_assert_entry_header_size[sizeof(struct ddelta_entry_header) == 12 ? 1 : -1];
+
+/**
+ * Error codes to be returned by ddelta functions.
+ *
+ * Each function returns a negated variant of these error code on error, and for the
+ * I/O errors, more information is available in errno.
+ */
+enum ddelta_error {
+    /** The patch file has an invalid magic or header could not be read */
+    DDELTA_EMAGIC = 1,
+    /** An unknown algorithm error occured */
+    DDELTA_EALGO,
+    /** An I/O error occured while reading from (apply) or writing to (generate) the patch file */
+    DDELTA_EPATCHIO,
+    /** An I/O error occured while reading from the old file */
+    DDELTA_EOLDIO,
+    /** An I/O error occured while reading from (generate) or writing to (apply) the new file */
+    DDELTA_ENEWIO,
+    /** Patch ended before target file was fully written */
+    DDELTA_EPATCHSHORT,
+    /** Precheck failed as the MD of old file was mismatched */
+    DDELTA_PRECHECK,
+};
+
+/**
+ * Generates a diff from the files in oldfd and newfd in patchfd.
+ *
+ * The old and new files must be seekable.
+ */
+int ddelta_generate(int oldfd, int newfd, int patchfd, int blocksize);
+
+/**
+ * Read a header from the given file.
+ *
+ * After the header has been read, you can use header->new_file_size to get
+ * the size of the target file.
+ *
+ * @return 0 on success,
+ *         -DDELTA_EPATCHIO on I/O errors,
+ *         -DDELTA_EMAGIC if it is not a ddelta file
+ */
+int ddelta_header_read(struct ddelta_header *header, FILE *patchfd);
+
+/**
+ * Generates a new file from a given patch and an old file.
+ *
+ * The old file must be seekable.
+ */
+int ddelta_apply(struct ddelta_header *header, FILE *patchfd, FILE *oldfd, const char *new);
+
+#endif

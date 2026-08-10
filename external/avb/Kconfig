@@ -1,0 +1,97 @@
+#
+# Copyright (C) 2023 Xiaomi Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+config LIB_AVB
+	bool "Enable libavb"
+	default n
+	---help---
+		libavb
+
+if LIB_AVB
+
+config LIB_AVB_CRC32
+	bool "Enable CRC32"
+	default n
+if LIB_AVB_CRC32
+config LIB_AVB_CRC32_CRYPTODEV
+	bool "Enable CRC32 Accelerator via /dev/crypto"
+	depends on CRYPTO_CRYPTODEV
+	default n
+endif
+
+config LIB_AVB_SHA256
+	bool "Enable SHA256"
+	default n
+if LIB_AVB_SHA256
+config LIB_AVB_ALGORITHM_TYPE_SHA256_RSA2048
+	bool "Enable algorithm type SHA256_RSA2048"
+	default n
+config LIB_AVB_ALGORITHM_TYPE_SHA256_RSA4096
+	bool "Enable algorithm type SHA256_RSA4096"
+	default n
+config LIB_AVB_ALGORITHM_TYPE_SHA256_RSA8192
+	bool "Enable algorithm type SHA256_RSA8192"
+	default n
+config LIB_AVB_SHA256_CRYPTODEV
+	bool "Enable SHA256 Accelerator via /dev/crypto"
+	depends on CRYPTO_CRYPTODEV
+	default n
+endif
+
+config LIB_AVB_SHA512
+	bool "Enable SHA512"
+	default n
+if LIB_AVB_SHA512
+config LIB_AVB_ALGORITHM_TYPE_SHA512_RSA2048
+	bool "Enable algorithm type SHA512_RSA2048"
+	default n
+config LIB_AVB_ALGORITHM_TYPE_SHA512_RSA4096
+	bool "Enable algorithm type SHA512_RSA4096"
+	default n
+config LIB_AVB_ALGORITHM_TYPE_SHA512_RSA8192
+	bool "Enable algorithm type SHA512_RSA8192"
+	default n
+config LIB_AVB_SHA512_CRYPTODEV
+	bool "Enable SHA512 Accelerator via /dev/crypto"
+	depends on CRYPTO_CRYPTODEV
+	default n
+endif
+
+config LIB_AVB_RSA_VERIFY_CRYPTODEV
+	bool "Enable RSA Accelerator via /dev/crypto"
+	depends on CRYPTO_CRYPTODEV
+	default n
+
+config LIB_AVB_FOOTER_SEARCH_BLKSIZE
+	int "Block size of AVB Footer searching"
+	default 0
+	---help---
+		Default zero disables AVB Footer searching(read last 64 bytes directly),
+		set value greater than zero as searching step size to enable.
+
+config LIB_AVB_BUF_SIZE
+	int "Max buffer size (Bytes) for partition message digest calculation"
+	default 65536
+	---help---
+		Zero means alloc memory of size of full partition.
+
+config LIB_AVB_DISABLE_VERIFY
+	bool "Disable RSA verify"
+	default n
+	---help---
+		Disable RSA verify, check MD only.
+
+endif

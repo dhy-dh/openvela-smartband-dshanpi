@@ -1,0 +1,6 @@
+[Unit]
+Description=MTP responder functionfs socket
+
+[Socket]
+ListenUSBFunction=/dev/usb-funcs/mtp/default
+TriggerLimitIntervalSec=0

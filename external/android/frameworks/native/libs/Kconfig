@@ -1,0 +1,93 @@
+#
+# Copyright (C) 2023 Xiaomi Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+config ANDROID_BINDER
+	bool "Android Binder"
+	depends on CXX_LOCALIZATION
+	depends on TLS_TASK_NELEM > 0 || BUILD_KERNEL
+	depends on TLS_NELEM > 0
+	select ANDROID_LIBUTILS
+	default n
+	---help---
+		Android binder, the codebase come from AOSP
+
+if ANDROID_BINDER
+config ANDROID_BINDER_VERSION
+	int "Android Binder version"
+	default 15
+
+config ANDROID_BINDER_PROXY_CHECK
+	bool "Android Binder Proxy Check"
+	default n
+
+config ANDROID_BINDER_RPC
+	bool "Android CPC Binder"
+	depends on NET
+	default y
+
+config ANDROID_BINDER_THREADPOOL_STACKSIZE
+	int "Android Binder Thread pool stacksize"
+	default 8192
+
+config ANDROID_BINDER_RPC_THREAD_STACKSIZE
+	int "Android RPC Binder Thread stacksize"
+	depends on ANDROID_BINDER_RPC
+	default PTHREAD_STACK_DEFAULT
+
+config ANDROID_BINDER_TEST
+	tristate "Android Binder Test Case"
+	depends on LIB_GOOGLETEST
+	default n
+
+if ANDROID_BINDER_TEST
+config ANDROID_BINDER_TEST_STACKSIZE
+	int "Android Binder Test stack size"
+	default DEFAULT_TASK_STACKSIZE
+
+config ANDROID_BINDER_LIB_TEST
+	bool "Android Binder Lib Test Case"
+	depends on LIBC_EXECFUNCS
+	default n
+
+config ANDROID_BINDER_DRIVER_TEST
+	bool "Android Binder Driver Test Case"
+	default n
+
+config ANDROID_BINDER_PERFORMANCE_TEST
+	bool "Android Binder Performance Test"
+	default n
+
+config ANDROID_BINDER_XPC_PERFORMANCE_TEST
+	bool "Android Binder RPC and CPC Performance Test"
+	depends on LIB_GOOGLEBENCHMARK
+	default n
+
+if ANDROID_BINDER_XPC_PERFORMANCE_TEST
+config ANDROID_BINDER_RPC_PERFORMANCE_TEST
+	bool "Android Binder RPC Binder Performance Test"
+	depends on ANDROID_BINDER_RPC
+	default n
+
+config ANDROID_BINDER_CPC_PERFORMANCE_TEST
+	bool "Android Binder CPC Binder Performance Test"
+	default n
+
+config RPMSGSOCK_PERFORMANCE_TEST
+	bool "rpmsg socket Performance Test"
+	default n
+endif #ANDROID_BINDER_XPC_PERFORMANCE_TEST
+endif #ANDROID_BINDER_TEST
+endif #ANDROID_BINDER

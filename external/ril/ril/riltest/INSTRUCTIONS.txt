@@ -1,0 +1,44 @@
+========================================
+ RIL (Radio Interface Layer) Test Usage
+========================================
+
+This document provides instructions on how to configure the environment and execute the RIL test script (run_testcase.sh).
+
+
+1. Configuration and Build
+--------------------------
+
+Before running the test script, the build configuration must be modified and the project must be recompiled.
+
+1. Disable the OFONO Feature
+   In the project configuration, find and disable the CONFIG_OFONO option.
+
+2. Enable the RIL Test Feature
+   In the project configuration, find and enable the CONFIG_RIL_TEST option.
+
+3. Clean and Recompile
+   Perform a full clean of the build (e.g., distclean) and then recompile the entire project.
+
+
+2. Deployment and Execution
+--------------------------
+
+After the build is complete, follow these steps to push the script to the target device and execute it.
+
+1. Push the Script to the Device
+   Use the adb command to push the test script, run_testcase.sh, to the /data directory on the target device.
+
+   adb push run_testcase.sh /data/
+
+2. Execute the Test Script
+   Connect to the device via adb shell and use the sh command to execute the script.
+
+   adb shell "sh /data/run_testcase.sh"
+
+
+3. Adding New Test Cases
+--------------------------
+
+To add a new test case, please edit the `ril_parcel_ctor_verifier.cpp` file. New entries should be added to the `cases` array.
+
+Please use the existing entries in the array as a reference for the correct format and structure.

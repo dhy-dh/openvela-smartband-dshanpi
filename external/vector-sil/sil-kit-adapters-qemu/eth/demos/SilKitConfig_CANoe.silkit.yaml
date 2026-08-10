@@ -1,0 +1,7 @@
+Description: Configuration for CANoe participant for SIL Kit Adapter QEMU (Eth) demo
+Middleware:
+  RegistryUri: silkit://localhost:8501
+  # Sinks:
+  # - Type: File
+    # Level: Trace
+    # LogName: TraceLogFile

@@ -1,0 +1,20 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config LIB_GLIB
+	bool "GLib library"
+	depends on LIBC_EXECFUNCS
+	default n
+	---help---
+		GLib is the low-level core library that forms the basis
+		for projects such as GTK and GNOME.
+
+config GLIB_WASM
+	bool "Compile to Wasm"
+	default n
+
+if LIB_GLIB
+
+endif

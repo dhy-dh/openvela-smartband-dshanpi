@@ -1,0 +1,9 @@
+build
+builddir
+doc
+.vscode
+.idea
+*.swp
+*.tvg
+*.tmp
+*.code-workspace

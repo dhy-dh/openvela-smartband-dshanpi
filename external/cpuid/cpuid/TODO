@@ -1,0 +1,14 @@
+AMD features
+  * Leaf 0x8000 001F  AMD Secure Encryption
+  * Leaf 0x8000 0020  Platform QoS Enforcement for Memory Bandwidth
+
+Intel features
+  * Leaf 0x0000 0010  L3 Cache Intel RDT
+  * Leaf 0x0000 0012  SGX
+  * Leaf 0x0000 0017  SOC Vendor Attribute
+  * Leaf 0x0000 0019  Key locker
+  * Leaf 0x0000 001a  Hybrid information
+  * Leaf 0x0000 001d  Tile information, tile palette
+  * Leaf 0x0000 001e  TMUL information
+  * Leaf 0x0000 001f  V2 Extended Topology Enumeration
+  * Leaf 0x0000 0020  HRESET

@@ -1,0 +1,47 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config RILD
+	tristate "Enable RILD"
+	default n
+	---help---
+		Enable ril daemon
+
+if RILD
+
+config RILD_PRIORITY
+	int "Rild task priority"
+	default 100
+
+config RILD_STACKSIZE
+	int "Rild stack size"
+	default 4096
+
+config GOLDFISH_RIL
+	bool "Enable goldfish ril"
+	default n
+	---help---
+		Enable goldfish ril
+
+endif
+
+config RIL_TEST
+	bool "Enable ril test"
+	default n
+	depends on RILD
+	---help---
+		Enable ril test
+
+if RIL_TEST
+
+config RIL_TEST_PRIORITY
+	int "riltest task priority"
+	default 100
+
+config RIL_TEST_STACKSIZE
+	int "riltest stack size"
+	default 8192
+
+endif

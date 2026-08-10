@@ -1,0 +1,14 @@
+out
+.idea
+*.iml
+.vscode
+*.o
+*.swp
+
+# NuttX DYNLIB related
+*.built
+*.depend
+Make.dep
+*.map
+/host/nuttx
+symtab.c

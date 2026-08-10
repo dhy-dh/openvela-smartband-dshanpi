@@ -1,0 +1,43 @@
+#
+# Copyright (C) 2023 Xiaomi Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+include $(APPDIR)/Make.defs
+
+CXXEXT = .cpp
+
+MODULE    = $(CONFIG_ANDROID_SERVICEMANAGER)
+PRIORITY  = SCHED_PRIORITY_DEFAULT
+STACKSIZE = $(CONFIG_ANDROID_SERVICEMANAGER_STACKSIZE)
+
+CXXFLAGS += -DVENDORSERVICEMANAGER
+CXXSRCS  += Access.cpp
+CXXSRCS  += ServiceManager.cpp
+ifeq ($(CONFIG_ANDROID_SERVICEMANAGER_INPROC),)
+MAINSRC  += main.cpp
+PROGNAME += servicemanager
+endif
+
+ASRCS := $(wildcard $(ASRCS))
+CSRCS := $(wildcard $(CSRCS))
+CXXSRCS := $(wildcard $(CXXSRCS))
+MAINSRC := $(wildcard $(MAINSRC))
+NOEXPORTSRCS = $(ASRCS)$(CSRCS)$(CXXSRCS)$(MAINSRC)
+
+ifneq ($(NOEXPORTSRCS),)
+BIN := $(APPDIR)/staging/libandroid.a
+endif
+
+include $(APPDIR)/Application.mk
