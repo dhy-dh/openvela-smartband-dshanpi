@@ -102,8 +102,8 @@ flowchart TD
     L --> A[NxPlayer worker]
     Y --> H[电脑端天气/同步代理]
     D --> H
-    A --> C[/dev/audio/pcm0p]
-    U --> F[/data 资源与状态]
+    A --> C["/dev/audio/pcm0p"]
+    U --> F["/data 资源与状态"]
 ```
 
 启动顺序位于 `openvela_ui_main.c`：
