@@ -1,0 +1,61 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+menuconfig GRAPHICS_TEST
+	bool "enable graphics test"
+	default n
+	depends on TESTS_TESTCASES
+
+if GRAPHICS_TEST
+
+config GRAPHICS_TEST_PRIORITY
+	int "graphics test task priority"
+	default 100
+
+config GRAPHICS_TEST_STACKSIZE
+	int "graphics test stack size"
+	default 4096
+
+config VIDEO_WIDGET_TEST
+	bool "enable video widget test"
+	default n
+	depends on LVX_USE_VIDEO_ADAPTER
+
+if ANIMATION_ENGINE
+
+config ANIMATION_ENGINE_TEST
+	bool "enable animation engine test"
+	default n
+	depends on LVX_USE_ANIMENGINE_ADAPTER
+	
+config ANIMATION_ENGINE_CTEST
+	bool "enable animation engine c test"
+	default n
+	depends on LVX_USE_ANIMENGINE_ADAPTER
+
+config ANIM_PHYSICS_ENGINE_TEST
+	bool "enable pyhsics engine test"
+	default n
+	depends on ANIM_PHYSICS_ENGINE && LVX_USE_ANIMENGINE_ADAPTER && LVX_USE_EFFECT_PAINTER
+
+config RIVE_TEST
+	bool "enable rive test"
+	default n
+	depends on LVX_USE_ANIMENGINE_ADAPTER
+
+config GESTURES_TEST
+	bool "test gestures example for test"
+	default n
+	depends on LV_USE_GESTURE_RECOGNITION
+endif # ANIMATION_ENGINE
+
+config LV_BLUR_TEST
+	bool "enable lv_blur test"
+	default n
+	depends on GRAPHICS_LVGL
+
+endif # GRAPHICS_TEST
+
+
