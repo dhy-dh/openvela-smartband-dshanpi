@@ -1,0 +1,21 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config FS_LROFS
+	bool "LROFS file system"
+	default n
+	depends on !DISABLE_MOUNTPOINT
+	---help---
+		Enable LROFS filesystem support
+if FS_LROFS
+
+config FS_LROFS_CACHE_FILE_NSECTORS
+	int "The number of file cache sector"
+	range 1 256
+	default 1
+	---help---
+		The number of file cache sector
+
+endif

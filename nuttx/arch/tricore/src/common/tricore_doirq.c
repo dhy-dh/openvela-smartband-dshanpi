@@ -1,0 +1,156 @@
+/****************************************************************************
+ * arch/tricore/src/common/tricore_doirq.c
+ *
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ *
+ ****************************************************************************/
+
+/****************************************************************************
+ * Included Files
+ ****************************************************************************/
+
+#include <nuttx/config.h>
+
+#include <stdint.h>
+#include <assert.h>
+
+#include <nuttx/irq.h>
+#include <nuttx/arch.h>
+#include <nuttx/addrenv.h>
+#include <nuttx/board.h>
+
+#include <arch/barriers.h>
+#include <arch/board/board.h>
+
+#include <sched/sched.h>
+
+#include "tricore_internal.h"
+
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+
+IFX_INTERRUPT_INTERNAL(tricore_doirq, 0, 255)
+{
+  uintptr_t istackbase = up_get_intstackbase(up_cpu_index());
+  struct tcb_s **running_task = &g_running_task;
+  struct tcb_s *tcb;
+
+#ifdef CONFIG_SUPPRESS_INTERRUPTS
+  PANIC();
+#else
+  Ifx_CPU_ICR icr;
+  uintptr_t *regs;
+  uintptr_t *cpu_lcx;
+
+  icr.U = __mfcr(CPU_ICR);
+  regs = tricore_csa2addr(__mfcr(CPU_PCXI));
+
+  tcb = *running_task;
+  if (tcb != NULL)
+    {
+      tcb->xcp.regs = regs - TC_CONTEXT_REGS;
+    }
+
+  /* set registers related to csa */
+
+  __mtcr(CPU_FCX, tricore_addr2csa(istackbase));
+  __mtcr(CPU_LCX, tricore_addr2csa(istackbase + CONFIG_ARCH_INTERRUPTSTACK
+                                              - 2 * TC_CONTEXT_SIZE));
+  UP_ISB();
+
+  board_autoled_on(LED_INIRQ);
+
+  /* Nested interrupts are not supported */
+
+  DEBUGASSERT(!up_interrupt_context());
+
+  /* Set irq flag */
+
+  up_set_interrupt_context(true);
+
+  if (tcb != NULL)
+    {
+      nxsched_suspend_scheduler(tcb);
+    }
+
+  /* Deliver the IRQ */
+
+  tricore_ack_irq(NDX_TO_IRQ(icr.B.CCPN));
+
+  irq_dispatch(NDX_TO_IRQ(icr.B.CCPN), regs);
+
+  tcb = this_task();
+
+  /* Check for a context switch. */
+
+  if (*running_task != tcb)
+    {
+#ifdef CONFIG_ARCH_ADDRENV
+      /* Make sure that the address environment for the previously
+       * running task is closed down gracefully (data caches dump,
+       * MMU flushed) and set up the address environment for the new
+       * thread at the head of the ready-to-run list.
+       */
+
+      addrenv_switch(tcb);
+      tcb = this_task();
+#endif
+
+      /* Updata PPRS register */
+
+      tricore_store_pprs(*running_task);
+      tricore_restore_pprs(tcb);
+
+      /* Update the TLS pointer */
+
+      tricore_set_tls_info(tcb->stack_alloc_ptr);
+
+      /* Record the new "running" task when context switch occurred.
+       * g_running_tasks[] is only used by assertion logic for reporting
+       * crashes.
+       */
+
+      *running_task = tcb;
+    }
+
+  nxsched_resume_scheduler(tcb);
+
+  /* Reserve at least two csa for CPU_LCX */
+
+  cpu_lcx =
+    (uintptr_t *)((uint8_t *)tcb->stack_base_ptr + tcb->adj_stack_size) -
+    XCPTCONTEXT_REGS;
+  __mtcr(CPU_PCXI, tricore_addr2csa(tcb->xcp.regs + TC_CONTEXT_REGS));
+  __mtcr(CPU_FCX, tricore_addr2csa(tcb->xcp.regs + XCPTCONTEXT_REGS));
+  __mtcr(CPU_LCX, tricore_addr2csa(cpu_lcx));
+  UP_ISB();
+
+  /* Set irq flag */
+
+  up_set_interrupt_context(false);
+
+  /* (*running_task)->xcp.regs is about to become invalid and
+   * will be marked as NULL to avoid misusage. the same applies
+   * to (*running_task)->xcp.pprs.
+   */
+
+  (*running_task)->xcp.regs = NULL;
+  tricore_change_pprs(*running_task, UINT32_MAX);
+
+  board_autoled_off(LED_INIRQ);
+#endif
+}

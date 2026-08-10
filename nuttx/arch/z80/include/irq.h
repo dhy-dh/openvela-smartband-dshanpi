@@ -1,0 +1,100 @@
+/****************************************************************************
+ * arch/z80/include/irq.h
+ *
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ *
+ ****************************************************************************/
+
+/* This file should never be included directly but, rather,
+ * only indirectly through nuttx/irq.h
+ */
+
+#ifndef __ARCH_Z80_INCLUDE_IRQ_H
+#define __ARCH_Z80_INCLUDE_IRQ_H
+
+/****************************************************************************
+ * Included Files
+ ****************************************************************************/
+
+#include <nuttx/irq.h>
+#include <arch/chip/irq.h>
+
+/****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
+
+/* The Z80 stack does not need to be aligned.  Here is is aligned at word
+ * (4 byte) boundary.
+ */
+
+#define STACKFRAME_ALIGN 4
+
+/****************************************************************************
+ * Public Function Prototypes
+ ****************************************************************************/
+
+#ifdef __cplusplus
+#define EXTERN extern "C"
+extern "C"
+{
+#else
+#define EXTERN extern
+#endif
+
+/* Return program counter */
+
+static inline_function uintptr_t up_getpc(void)
+{
+  uintptr_t pc;
+
+  __asm__ __volatile__
+    (
+      "call 1f\n\t"
+      "1:\n\t"
+      "pop hl\n\t"
+      "ld %0, hl\n\t"
+      : "=r"(pc)
+      :
+      : "hl", "memory"
+    );
+
+  return pc;
+}
+
+/* Return the current value of the stack pointer */
+
+uintptr_t up_getsp(void);
+
+/****************************************************************************
+ * Name: up_getusrpc
+ ****************************************************************************/
+
+#define up_getusrpc(regs) \
+    (((FAR chipreg_t *)((regs) ? (regs) : up_current_regs()))[XCPT_PC])
+
+/****************************************************************************
+ * Name: up_getusrsp
+ ****************************************************************************/
+
+#define up_getusrsp(regs) \
+    ((uintptr_t)((FAR chipreg_t*)(regs))[XCPT_SP])
+
+#undef EXTERN
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __ARCH_Z80_INCLUDE_IRQ_H */

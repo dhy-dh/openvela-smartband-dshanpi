@@ -1,0 +1,404 @@
+/****************************************************************************
+ * include/nuttx/rptun/rptun.h
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ *
+ ****************************************************************************/
+
+#ifndef __INCLUDE_NUTTX_RPTUN_RPTUN_H
+#define __INCLUDE_NUTTX_RPTUN_RPTUN_H
+
+/****************************************************************************
+ * Included Files
+ ****************************************************************************/
+
+#include <nuttx/config.h>
+
+#ifdef CONFIG_RPTUN
+
+#include <sys/boardctl.h>
+
+#include <metal/cache.h>
+#include <nuttx/rpmsg/rpmsg.h>
+#include <openamp/remoteproc.h>
+#include <openamp/rpmsg_virtio.h>
+
+/****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
+
+#define RPTUNIOC_START        _RPTUNIOC(1)
+#define RPTUNIOC_STOP         _RPTUNIOC(2)
+#define RPTUNIOC_RESET        _RPTUNIOC(3)
+#define RPTUNIOC_WAIT         _RPTUNIOC(4)
+
+#define RPTUN_NOTIFY_ALL      UINT32_MAX
+
+#ifdef CONFIG_OPENAMP_CACHE
+#  define RPTUN_INVALIDATE(x) metal_cache_invalidate(&x, sizeof(x))
+#else
+#  define RPTUN_INVALIDATE(x)
+#endif
+
+/* Access macros ************************************************************/
+
+/****************************************************************************
+ * Name: RPTUN_GET_CPUNAME
+ *
+ * Description:
+ *   Get remote cpu name
+ *
+ * Input Parameters:
+ *   dev  - Device-specific state data
+ *
+ * Returned Value:
+ *   Cpu name on success, NULL on failure.
+ *
+ ****************************************************************************/
+
+#define RPTUN_GET_CPUNAME(d) ((d)->ops->get_cpuname ? \
+                              (d)->ops->get_cpuname(d) : "")
+
+/****************************************************************************
+ * Name: RPTUN_GET_FIRMWARE
+ *
+ * Description:
+ *   Get remote firmware name
+ *
+ * Input Parameters:
+ *   dev  - Device-specific state data
+ *
+ * Returned Value:
+ *   Firmware name on success, NULL on failure.
+ *
+ ****************************************************************************/
+
+#define RPTUN_GET_FIRMWARE(d) ((d)->ops->get_firmware ? \
+                               (d)->ops->get_firmware(d) : NULL)
+
+/****************************************************************************
+ * Name: RPTUN_GET_ADDRENV
+ *
+ * Description:
+ *   Get address env list
+ *
+ * Input Parameters:
+ *   dev  - Device-specific state data
+ *
+ * Returned Value:
+ *   Addrenv pointer on success, NULL on failure.
+ *
+ ****************************************************************************/
+
+#define RPTUN_GET_ADDRENV(d) ((d)->ops->get_addrenv ? \
+                              (d)->ops->get_addrenv(d) : NULL)
+
+/****************************************************************************
+ * Name: RPTUN_GET_RESOURCE
+ *
+ * Description:
+ *   Get rptun resource
+ *
+ * Input Parameters:
+ *   dev  - Device-specific state data
+ *
+ * Returned Value:
+ *   Resource pointer on success, NULL on failure
+ *
+ ****************************************************************************/
+
+#define RPTUN_GET_RESOURCE(d) ((d)->ops->get_resource ? \
+                               (d)->ops->get_resource(d) : NULL)
+
+/****************************************************************************
+ * Name: RPTUN_IS_AUTOSTART
+ *
+ * Description:
+ *   AUTO start or not
+ *
+ * Input Parameters:
+ *   dev  - Device-specific state data
+ *
+ * Returned Value:
+ *   True autostart, false not autostart
+ *
+ ****************************************************************************/
+
+#define RPTUN_IS_AUTOSTART(d) ((d)->ops->is_autostart ? \
+                               (d)->ops->is_autostart(d) : false)
+
+/****************************************************************************
+ * Name: RPTUN_IS_MASTER
+ *
+ * Description:
+ *   IS master or not
+ *
+ * Input Parameters:
+ *   dev  - Device-specific state data
+ *
+ * Returned Value:
+ *   True master, false remote
+ *
+ ****************************************************************************/
+
+#define RPTUN_IS_MASTER(d) ((d)->ops->is_master ? \
+                            (d)->ops->is_master(d) : false)
+
+/****************************************************************************
+ * Name: RPTUN_CONFIG
+ *
+ * Description:
+ *   CONFIG remote cpu
+ *
+ * Input Parameters:
+ *   dev  - Device-specific state data
+ *   data - Device-specific private data
+ *
+ * Returned Value:
+ *   OK unless an error occurs.  Then a negated errno value is returned
+ *
+ ****************************************************************************/
+#define RPTUN_CONFIG(d, p) ((d)->ops->config ? \
+                            (d)->ops->config(d, p) : 0)
+
+/****************************************************************************
+ * Name: RPTUN_START
+ *
+ * Description:
+ *   START remote cpu
+ *
+ * Input Parameters:
+ *   dev  - Device-specific state data
+ *
+ * Returned Value:
+ *   OK unless an error occurs.  Then a negated errno value is returned
+ *
+ ****************************************************************************/
+
+#define RPTUN_START(d) ((d)->ops->start ? \
+                        (d)->ops->start(d) : -ENOSYS)
+
+/****************************************************************************
+ * Name: RPTUN_STOP
+ *
+ * Description:
+ *   STOP remote cpu
+ *
+ * Input Parameters:
+ *   dev  - Device-specific state data
+ *
+ * Returned Value:
+ *   OK unless an error occurs.  Then a negated errno value is returned
+ *
+ ****************************************************************************/
+
+#define RPTUN_STOP(d) ((d)->ops->stop ? \
+                       (d)->ops->stop(d) : -ENOSYS)
+
+/****************************************************************************
+ * Name: RPTUN_NOTIFY
+ *
+ * Description:
+ *   Notify remote core there is a message to get.
+ *
+ * Input Parameters:
+ *   dev  - Device-specific state data
+ *   vqid - Message to notify
+ *
+ * Returned Value:
+ *   OK unless an error occurs.  Then a negated errno value is returned
+ *
+ ****************************************************************************/
+
+#define RPTUN_NOTIFY(d,v) ((d)->ops->notify ? \
+                           (d)->ops->notify(d,v) : -ENOSYS)
+
+/****************************************************************************
+ * Name: RPTUN_REGISTER_CALLBACK
+ *
+ * Description:
+ *   Attach to receive a callback when something is received on RPTUN
+ *
+ * Input Parameters:
+ *   dev      - Device-specific state data
+ *   callback - The function to be called when something has been received
+ *   arg      - A caller provided value to return with the callback
+ *
+ * Returned Value:
+ *   OK unless an error occurs.  Then a negated errno value is returned
+ *
+ ****************************************************************************/
+
+#define RPTUN_REGISTER_CALLBACK(d,c,a) ((d)->ops->register_callback ? \
+                                        (d)->ops->register_callback(d,c,a) : -ENOSYS)
+
+/****************************************************************************
+ * Name: RPTUN_UNREGISTER_CALLBACK
+ *
+ * Description:
+ *   Detach RPTUN callback
+ *
+ * Input Parameters:
+ *   dev      - Device-specific state data
+ *
+ * Returned Value:
+ *   OK unless an error occurs.  Then a negated errno value is returned
+ *
+ ****************************************************************************/
+
+#define RPTUN_UNREGISTER_CALLBACK(d) ((d)->ops->register_callback ? \
+                                      (d)->ops->register_callback(d,0,NULL) : -ENOSYS)
+
+/****************************************************************************
+ * Name: RPTUN_RESET
+ *
+ * Description:
+ *   Reset remote cpu
+ *
+ * Input Parameters:
+ *   dev      - Device-specific state data
+ *   value    - reset value, Panic remote core if value is
+ *              BOARDIOC_SOFTRESETCAUSE_PANIC
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
+
+#define RPTUN_RESET(d,v) ((d)->ops->reset ? \
+                          (d)->ops->reset(d,v) : UNUSED(d))
+
+/****************************************************************************
+ * Name: RPTUN_SET_PHASE
+ *
+ * Description:
+ *   Set cpu phase
+ *
+ * Input Parameters:
+ *   dev      - Device-specific state data
+ *   phase    - cpu phase
+ *
+ * Returned Value:
+ *   OK unless an error occurs.  Then a negated errno value is returned
+ *
+ ****************************************************************************/
+
+#define RPTUN_SET_PHASE(d, p) ((d)->ops->set_phase ? \
+                               (d)->ops->set_phase(d, p) : -ENOSYS)
+
+/****************************************************************************
+ * Name: RPTUN_GET_PHASE
+ *
+ * Description:
+ *   Get remote cpu phase
+ *
+ * Input Parameters:
+ *   dev      - Device-specific state data
+ *
+ * Returned Value:
+ *   Remote cpu phase on success, a negated errno on failure
+ *
+ ****************************************************************************/
+
+#define RPTUN_GET_PHASE(d) ((d)->ops->get_phase ? \
+                            (d)->ops->get_phase(d) : -ENOSYS)
+
+/****************************************************************************
+ * Public Types
+ ****************************************************************************/
+
+typedef CODE int (*rptun_callback_t)(FAR void *arg, uint32_t vqid);
+
+struct rptun_addrenv_s
+{
+  uintptr_t pa;
+  uintptr_t da;
+  size_t    size;
+};
+
+begin_packed_struct struct rptun_rsc_s
+{
+  struct resource_table    rsc_tbl_hdr;
+  uint32_t                 offset[3];
+  struct fw_rsc_trace      log_trace;
+  struct fw_rsc_vdev       rpmsg_vdev;
+  struct fw_rsc_vdev_vring rpmsg_vring0;
+  struct fw_rsc_vdev_vring rpmsg_vring1;
+  struct fw_rsc_config     config;
+  struct fw_rsc_carveout   carveout;
+} end_packed_struct;
+
+struct rptun_dev_s;
+struct rptun_ops_s
+{
+  CODE FAR const char *(*get_cpuname)(FAR struct rptun_dev_s *dev);
+  CODE FAR const char *(*get_firmware)(FAR struct rptun_dev_s *dev);
+
+  CODE FAR const struct rptun_addrenv_s *(*get_addrenv)(
+                        FAR struct rptun_dev_s *dev);
+  CODE FAR struct resource_table *(*get_resource)(
+                        FAR struct rptun_dev_s *dev);
+
+  CODE bool (*is_autostart)(FAR struct rptun_dev_s *dev);
+  CODE bool (*is_master)(FAR struct rptun_dev_s *dev);
+
+  CODE int (*config)(struct rptun_dev_s *dev, void *data);
+  CODE int (*start)(FAR struct rptun_dev_s *dev);
+  CODE int (*stop)(FAR struct rptun_dev_s *dev);
+  CODE int (*notify)(FAR struct rptun_dev_s *dev, uint32_t vqid);
+  CODE int (*register_callback)(FAR struct rptun_dev_s *dev,
+                                rptun_callback_t callback, FAR void *arg);
+
+  CODE int (*reset)(FAR struct rptun_dev_s *dev, unsigned long value);
+
+  CODE int (*set_phase)(FAR struct rptun_dev_s *dev, unsigned long phase);
+  CODE unsigned long (*get_phase)(FAR struct rptun_dev_s *dev);
+};
+
+struct rptun_dev_s
+{
+  FAR const struct rptun_ops_s *ops;
+  FAR void *stack;
+  size_t stack_size;
+};
+
+/****************************************************************************
+ * Public Function Prototypes
+ ****************************************************************************/
+
+#ifdef __cplusplus
+#define EXTERN extern "C"
+extern "C"
+{
+#else
+#define EXTERN extern
+#endif
+
+int rptun_initialize(FAR struct rptun_dev_s *dev);
+void rptun_dump_resource(FAR const struct resource_table *rsc);
+int rptun_boot(FAR const char *cpuname);
+int rptun_poweroff(FAR const char *cpuname);
+int rptun_reset(FAR const char *cpuname, unsigned long value);
+int rptun_wait(FAR const char *cpuname, unsigned long phase);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* CONFIG_RPTUN */
+#endif /* __INCLUDE_NUTTX_RPTUN_RPTUN_H */

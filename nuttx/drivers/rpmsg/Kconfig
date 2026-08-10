@@ -1,0 +1,246 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config RPMSG
+	bool
+	default n
+	select OPENAMP
+	select SCHED_WORKQUEUE
+
+if RPMSG
+
+config RPMSG_CHAR
+	bool "rpmsg char support"
+	default n
+	---help---
+		User can use the /dev/rpmsg/<cpuname> to create the
+		endpoint and then use /dev/rpmsg-<name> to communicate with
+		remote processer.
+
+config RPMSG_CHAR_NPOLLWAITERS
+	int "rpmsg char number of the poll waiters"
+	default 2
+	depends on RPMSG_CHAR
+
+config RPMSG_WQUEUE_GLOBAL
+	bool "rpmsg global work queue"
+	default n
+	---help---
+		This is for rpmsg global work queue.
+
+config RPMSG_WQUEUE_PRIORITY
+	int "rpmsg work queue priority"
+	default 224
+
+config RPMSG_WQUEUE_STACKSIZE
+	int "rpmsg work queue stack size"
+	default 4096
+
+config RPMSG_WQUEUE_NUMBER
+	int "rpmsg work queue number"
+	default 1
+	range 1 256
+	---help---
+		This macro sets the number of rpmsg work queue. It can be
+		customized and the minimum value is 1.
+
+config RPMSG_TRACE
+	bool "rpmsg trace"
+	default n
+	depends on DRIVERS_NOTERAM
+	---help---
+		This is for trace and record all message passed through
+		rpmsg channel, including the type,src,dst and recored the ept.
+
+config RPMSG_TRACE_BUFSIZE
+	int "rpmsg trace buffer size"
+	default 16384
+	depends on RPMSG_TRACE
+	---help---
+		This macro sets the trace buffer size corresponding to rpmsg.
+		It can be customized and the dafault value is 16384.
+
+config RPMSG_TRACE_BACKTRACE
+	int "Rpmsg trace backtrace"
+	depends on RPMSG_TRACE
+	default 0
+	range 0 16
+
+config RPMSG_LOCAL_CPUNAME
+	string "Rpmsg Local Cpuname"
+	default LIBC_HOSTNAME
+
+config RPMSG_PING
+	bool "rpmsg ping support"
+	default n
+	---help---
+		This is for debugging & profiling, create ping rpmsg
+		channel, user can use it to get send/recv speed & latency.
+
+config RPMSG_TEST
+	bool "rpmsg test support"
+	default n
+
+config RPMSG_WAKELOCK
+	bool "rpmsg wakelock support"
+	default n
+	depends on PM
+	---help---
+		rpmsg wakelock enable option, both for client and server.
+
+config RPMSG_PROCFS
+	bool "Include rpmsg info in procfs"
+	depends on FS_PROCFS_REGISTER
+	default !DEFAULT_SMALL
+	---help---
+		Use RPMSG file system to cat rpmsg info
+
+config RPMSG_POOL_COUNT
+	int "rpmsg pool buffer count"
+	default 16 if ARCH_STACK_PROTECT || ARCH_KSTACK_PROTECT
+	default 0 if !(ARCH_STACK_PROTECT || ARCH_KSTACK_PROTECT)
+	---help---
+		This macro sets the count of rpmsg pool buffers, each pool
+		can be used to allocate rpmsg buffers. When stack protection
+		is enabled, must be at least 1 to avoid stack overflow. When
+		disabled, 0 means using stack allocation (alloca).
+
+config RPMSG_POOL_SIZE
+	int "rpmsg pool size"
+	depends on RPMSG_POOL_COUNT != 0
+	default 64
+	---help---
+		This macro sets the size of each rpmsg pool, which is used
+		to allocate rpmsg buffers. The default value is 64 bytes.
+
+config RPMSG_PANIC_DUMP_VERBOSE
+	bool "rpmsg panic dump verbose"
+	default !DEFAULT_SMALL
+	---help---
+		Dump verbose info when rpmsg dump, default is y unless
+		DEFAULT_SMALL is y.
+
+endif # RPMSG
+
+config RPMSG_ROUTER
+	bool "rpmsg router support"
+	default n
+	select RPMSG
+	---help---
+		Rpmsg router driver for enabling communication
+		without physical channels.
+
+config RPMSG_PORT
+	bool
+	default n
+	select RPMSG
+	---help---
+		Rpmsg port transport layer used for cross chip communication.
+
+config RPMSG_PORT_SPI
+	bool "Rpmsg SPI Port Driver Support"
+	default n
+	select RPMSG_PORT
+	---help---
+		Rpmsg SPI Port driver used for cross chip communication.
+
+config RPMSG_PORT_SPI_SLAVE
+	bool "Rpmsg SPI Slave Port Driver Support"
+	default n
+	select RPMSG_PORT
+	---help---
+		Rpmsg SPI Slave Port driver used for cross chip communication.
+
+if RPMSG_PORT_SPI || RPMSG_PORT_SPI_SLAVE
+
+config RPMSG_PORT_SPI_THREAD_PRIORITY
+	int "Rpmsg SPI Port Thread Priority"
+	default 224
+
+config RPMSG_PORT_SPI_THREAD_STACKSIZE
+	int "Rpmsg SPI Port Stack Size"
+	default 4096
+
+config RPMSG_PORT_SPI_CRC
+	bool "Rpmsg SPI Port Use CRC Check"
+	default n
+
+config RPMSG_PORT_SPI_RX_THRESHOLD
+	int "Rpmsg SPI Port Rx Buffer Threshold"
+	default 50
+	range 0 100
+
+config RPMSG_PORT_SPI_PM_TIMEOUT
+	int "Rpmsg SPI Port PM Stay Timeout in Milliseconds"
+	default 1
+	depends on PM
+
+endif # RPMSG_PORT_SPI || RPMSG_PORT_SPI_SLAVE
+
+config RPMSG_PORT_UART
+	bool "Rpmsg Uart Port Driver Support"
+	default n
+	depends on SCHED_EVENTS
+	select RPMSG_PORT
+	---help---
+		Rpmsg Uart Port driver used for cross chip communication.
+
+if RPMSG_PORT_UART
+
+config RPMSG_PORT_UART_RX_THREAD_PRIORITY
+	int "Rpmsg UART Port RX Thread Priority"
+	default 224
+
+config RPMSG_PORT_UART_RX_THREAD_STACKSIZE
+	int "Rpmsg UART Port RX Stack Size"
+	default DEFAULT_TASK_STACKSIZE
+
+config RPMSG_PORT_UART_TX_THREAD_PRIORITY
+	int "Rpmsg UART Port TX Thread Priority"
+	default 224
+
+config RPMSG_PORT_UART_TX_THREAD_STACKSIZE
+	int "Rpmsg UART Port TX Stack Size"
+	default DEFAULT_TASK_STACKSIZE
+
+config RPMSG_PORT_UART_CRC
+	bool "Rpmsg UART Port CRC Enable"
+	default n
+
+config RPMSG_PORT_UART_DEBUG
+	bool "Rpmsg UART DEBUG Enable"
+	default n
+
+endif # RPMSG_PORT_UART
+
+config RPMSG_VIRTIO
+	bool
+	default n
+	select RPMSG
+	---help---
+		The Rpmsg VirtIO Lite, VirtIO-Rpmsg and VHost-Rpmsg common
+		part.
+
+if RPMSG_VIRTIO
+
+config RPMSG_VIRTIO_PM
+	bool "rpmsg virtio power management"
+	depends on PM
+	default n
+	---help---
+		If TX/RX buffer is supplied and powered by each CPU.
+		And when one CPU in DEEP sleep, then it's buffer will
+		goto RAM-retention mode, can't access from another CPU.
+		So, we provide this method to resolve this.
+
+config RPMSG_VIRTIO_PM_AUTORELAX
+	bool "rpmsg virtio pm autorelax"
+	depends on RPMSG_VIRTIO_PM
+	default y
+	---help---
+		use wd_timer to auto relax pm
+
+endif # RPMSG_VIRTIO
+

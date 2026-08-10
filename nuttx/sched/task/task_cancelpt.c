@@ -1,0 +1,230 @@
+/****************************************************************************
+ * sched/task/task_cancelpt.c
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ *
+ ****************************************************************************/
+
+/****************************************************************************
+ * Cancellation Points.
+ *
+ * Cancellation points shall occur when a thread is executing the following
+ * functions:
+ *
+ * accept()          mq_timedsend()           putpmsg()       sigtimedwait()
+ * aio_suspend()     msgrcv()                 pwrite()        sigwait()
+ * clock_nanosleep() msgsnd()                 read()          sigwaitinfo()
+ * close()           msync()                  readv()         sleep()
+ * connect()         nanosleep()              recv()          system()
+ * creat()           open()                   recvfrom()      tcdrain()
+ * fcntl()           pause()                  recvmsg()       usleep()
+ * fdatasync()       poll()                   select()        wait()
+ * fsync()           pread()                  sem_timedwait() waitid()
+ * getmsg()          pselect()                sem_wait()      waitpid()
+ * getpmsg()         pthread_cond_timedwait() send()          write()
+ * lockf()           pthread_cond_wait()      sendmsg()       writev()
+ * mq_receive()      pthread_join()           sendto()
+ * mq_send()         pthread_testcancel()     sigpause()
+ * mq_timedreceive() putmsg()                 sigsuspend()
+ *
+ * Each of the above function must call enter_cancellation_point() on entry
+ * in order to establish the cancellation point and
+ * leave_cancellation_point() on exit.  These functions are described below.
+ *
+ ****************************************************************************/
+
+/****************************************************************************
+ * Included Files
+ ****************************************************************************/
+
+#include <nuttx/config.h>
+
+#include <sched.h>
+#include <assert.h>
+#include <errno.h>
+
+#include <nuttx/irq.h>
+#include <nuttx/cancelpt.h>
+#include <nuttx/tls.h>
+
+#include "sched/sched.h"
+#include "semaphore/semaphore.h"
+#include "signal/signal.h"
+#include "mqueue/mqueue.h"
+#include "task/task.h"
+
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Name: nxnotify_cancellation
+ *
+ * Description:
+ *   Called by task_delete() or pthread_cancel() if the cancellation occurs
+ *   while we the thread is within the cancellation point.  This logic
+ *   behaves much like sending a signal:  It will cause waiting threads
+ *   to wake up and terminated with ECANCELED.  A call to
+ *   leave_cancellation_point() would then follow, causing the thread to
+ *   exit.
+ *
+ * Returned Value:
+ *   Indicate whether the notification delivery to the target
+ *
+ ****************************************************************************/
+
+bool nxnotify_cancellation(FAR struct tcb_s *tcb)
+{
+  FAR struct tls_info_s *tls = nxsched_get_tls(tcb);
+  irqstate_t flags;
+  bool ret = true;
+
+  /* We need perform the following operations from within a critical section
+   * because it can compete with interrupt level activity.
+   */
+
+  flags = enter_critical_section();
+
+  /* We only notify the cancellation if (1) the thread has not disabled
+   * cancellation, (2) the thread uses the deferred cancellation mode,
+   * and is waiting within a cancellation point, (3) the thread uses the
+   * asynchronous cancellation mode and currently blocked.
+   */
+
+  /* Check to see if this task has the non-cancelable bit set. */
+
+  if ((atomic_read(&tcb->flags) & TCB_FLAG_FORCED_CANCEL) == 0 &&
+      (tls->tl_cpstate & CANCEL_FLAG_NONCANCELABLE) != 0u)
+    {
+      /* Then we cannot cancel the thread now.  Here is how this is
+       * supposed to work:
+       *
+       * "When cancellability is disabled, all cancels are held pending
+       *  in the target thread until the thread changes the cancellability.
+       *  When cancellability is deferred, all cancels are held pending in
+       *  the target thread until the thread changes the cancellability,
+       *  calls a function which is a cancellation point or calls
+       *  pthread_testcancel(), thus creating a cancellation point.  When
+       *  cancellability is asynchronous, all cancels are acted upon
+       *  immediately, interrupting the thread with its processing."
+       */
+
+      tls->tl_cpstate |= CANCEL_FLAG_CANCEL_PENDING;
+    }
+
+#ifdef CONFIG_CANCELLATION_POINTS
+  /* Check if we should process this cancellation request:
+   * 1. The request hasn't been processed yet
+   * 2. Deferred cancellation mode
+   * 3. OR asynchronous cancellation with the task in wait state
+   *
+   * For asynchronous cancellation, we only handle it when the task
+   * is blocked in a wait state.
+   * If the task is not blocked in asynchronous mode, the cancellation
+   * will be handled by pthread_cancel() itself.
+   */
+
+  else if (((tls->tl_cpstate & CANCEL_FLAG_CANCEL_ASYNC) == 0u ||
+           (tcb->task_state >= FIRST_BLOCKED_STATE &&
+            tcb->task_state <= LAST_BLOCKED_STATE)))
+    {
+      /* This cancellation request can be processed */
+
+      /* Mark the cancellation as pending. */
+
+      tls->tl_cpstate |= CANCEL_FLAG_CANCEL_PENDING;
+
+      /* For asynchronous cancellation, we need to set tl_cpcount to
+       * ensure the cancellation point mechanism processes the
+       * asynchronous cancellation.
+       * This is only necessary in asynchronous mode because
+       * deferred cancellation already has proper cpcount management
+       * through enter_cancellation_point().
+       */
+
+      if ((tls->tl_cpstate & CANCEL_FLAG_CANCEL_ASYNC) != 0u)
+        {
+          tls->tl_cpcount = 1;
+        }
+
+      /* If the task is within a cancellation point (tl_cpcount > 0),
+       * notify it of the cancellation to wake it up with ECANCELED.
+       * This applies to both deferred and asynchronous cancellation modes.
+       */
+
+      if (tls->tl_cpcount > 0)
+        {
+          /* If the thread is blocked waiting for a semaphore, then the
+           * thread must be unblocked to handle the cancellation.
+           */
+
+          if (tcb->task_state == TSTATE_WAIT_SEM)
+            {
+              nxsem_wait_irq(tcb, ECANCELED);
+            }
+
+          /* If the thread is blocked waiting on a signal, then the
+           * thread must be unblocked to handle the cancellation.
+           */
+
+          else if (tcb->task_state == TSTATE_WAIT_SIG)
+            {
+              nxsig_wait_irq(tcb, ECANCELED);
+            }
+
+#if !defined(CONFIG_DISABLE_MQUEUE) || !defined(CONFIG_DISABLE_MQUEUE_SYSV)
+          /* If the thread is blocked waiting on a message queue, then
+           * the thread must be unblocked to handle the cancellation.
+           */
+
+          else if (tcb->task_state == TSTATE_WAIT_MQNOTEMPTY ||
+                   tcb->task_state == TSTATE_WAIT_MQNOTFULL)
+            {
+              nxmq_wait_irq(tcb, ECANCELED);
+            }
+#endif
+        }
+
+#ifdef HAVE_GROUP_MEMBERS
+      else if (tcb->group && (atomic_read(&tcb->group->tg_flags) &
+                              GROUP_FLAG_EXITING))
+        {
+          /* Exit in progress, do asynchronous cancel instead */
+
+          ret = false;
+        }
+#endif
+    }
+#endif
+
+  else
+    {
+      /* None of the conditions are met: The thread is not non-cancelable,
+       * and it's not in deferred cancellation mode (or in asynchronous
+       * cancellation mode but not blocked).
+       * We don't need to deliver the cancellation notification at this time.
+       * Return false to indicate that the cancellation notification
+       * was not needed.
+       */
+
+      ret = false;
+    }
+
+  leave_critical_section(flags);
+  return ret;
+}

@@ -1,0 +1,94 @@
+/****************************************************************************
+ * arch/sim/src/sim/sim_tcbinfo.c
+ *
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ *
+ ****************************************************************************/
+
+/****************************************************************************
+ * Included Files
+ ****************************************************************************/
+
+#include <nuttx/config.h>
+
+#include <nuttx/sched.h>
+#include <arch/irq.h>
+#include <sys/param.h>
+
+/****************************************************************************
+ * Private Data
+ ****************************************************************************/
+
+#if defined(CONFIG_HOST_X86_64) && !defined(CONFIG_SIM_M32)
+static const struct reginfo_s g_reginfo[] =
+{
+  REGINFO("rbx", 8, 1,  TCB_REG_OFF(JB_RBX), 8,   REGINFO_OFFSET_AUTO),
+  REGINFO("rbp", 8, 6,  TCB_REG_OFF(JB_RBP), 48,  REGINFO_OFFSET_AUTO),
+  REGINFO("rsp", 8, 7,  TCB_REG_OFF(JB_RSP), 56,  REGINFO_OFFSET_AUTO),
+  REGINFO("r12", 8, 12, TCB_REG_OFF(JB_R12), 96,  REGINFO_OFFSET_AUTO),
+  REGINFO("r13", 8, 13, TCB_REG_OFF(JB_R13), 104, REGINFO_OFFSET_AUTO),
+  REGINFO("r14", 8, 14, TCB_REG_OFF(JB_R14), 112, REGINFO_OFFSET_AUTO),
+  REGINFO("r15", 8, 15, TCB_REG_OFF(JB_R15), 120, REGINFO_OFFSET_AUTO),
+  REGINFO("rip", 8, 16, TCB_REG_OFF(JB_RIP), 128, REGINFO_OFFSET_AUTO),
+};
+#elif defined(CONFIG_HOST_X86) || defined(CONFIG_SIM_M32)
+static const struct reginfo_s g_reginfo[] =
+{
+  REGINFO("ebx", 4, 3, TCB_REG_OFF(JB_EBX), 12, REGINFO_OFFSET_AUTO),
+  REGINFO("esp", 4, 4, TCB_REG_OFF(JB_ESP), 16, REGINFO_OFFSET_AUTO),
+  REGINFO("ebp", 4, 5, TCB_REG_OFF(JB_EBP), 20, REGINFO_OFFSET_AUTO),
+  REGINFO("esi", 4, 6, TCB_REG_OFF(JB_ESI), 24, REGINFO_OFFSET_AUTO),
+  REGINFO("edi", 4, 7, TCB_REG_OFF(JB_EDI), 28, REGINFO_OFFSET_AUTO),
+  REGINFO("eip", 4, 8, TCB_REG_OFF(JB_EIP), 32, REGINFO_OFFSET_AUTO),
+};
+#elif defined(CONFIG_HOST_ARM64)
+static const struct reginfo_s g_reginfo[] =
+{
+  REGINFO("sp", 8, 31, TCB_REG_OFF(JB_SP), REGINFO_OFFSET_INVALID,
+          REGINFO_OFFSET_AUTO),
+  REGINFO("pc", 8, 32, TCB_REG_OFF(JB_PC), REGINFO_OFFSET_INVALID,
+          REGINFO_OFFSET_AUTO),
+};
+#elif defined(CONFIG_HOST_ARM)
+static const struct reginfo_s g_reginfo[] =
+{
+  REGINFO("", 4, 0, REGINFO_OFFSET_INVALID, REGINFO_OFFSET_INVALID,
+          REGINFO_OFFSET_AUTO),
+};
+#endif
+
+/****************************************************************************
+ * Public Data
+ ****************************************************************************/
+
+const struct tcbinfo_s g_tcbinfo used_data =
+{
+  .pid_off        = TCB_PID_OFF,
+  .state_off      = TCB_STATE_OFF,
+  .pri_off        = TCB_PRI_OFF,
+  .name_off       = TCB_NAME_OFF,
+  .stack_off      = TCB_STACK_OFF,
+  .stack_size_off = TCB_STACK_SIZE_OFF,
+  .regs_off       = TCB_REGS_OFF,
+  .regs_num       = nitems(g_reginfo),
+  {
+    .reginfo       = g_reginfo,
+  }
+};
+
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/

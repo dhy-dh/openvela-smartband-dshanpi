@@ -1,0 +1,29 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+if !DISABLE_MQUEUE
+
+config FS_MQUEUE_VFS_PATH
+	string "Path to message queue"
+	default "/var/mqueue"
+	---help---
+		The path to where POSIX message queues will exist in the VFS namespace.
+
+config FS_MQUEUE_NPOLLWAITERS
+	int "Maximum number of poll waiters"
+	default 4
+	---help---
+		The maximum number of waiters for the poll operation.
+
+config FS_MQUEUE_NAME_INITIAL_SLASH
+	bool "Message queue name starts with '/'"
+	default n
+	---help---
+		Require that message queue names (mq_name) must start with a '/' character.
+		When enabled, creating/opening a message queue with a name not starting
+		with '/' will return an error.
+		Disabled by default to maintain backward compatibility.
+
+endif # !DISABLE_MQUEUE

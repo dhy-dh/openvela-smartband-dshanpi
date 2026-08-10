@@ -1,0 +1,349 @@
+/****************************************************************************
+ * drivers/serial/serial_gdbstub.c
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ *
+ ****************************************************************************/
+
+/****************************************************************************
+ * Included Files
+ ****************************************************************************/
+
+#include <nuttx/serial/serial.h>
+#include <nuttx/panic_notifier.h>
+#include <nuttx/syslog/syslog.h>
+#include <nuttx/kmalloc.h>
+#include <nuttx/gdbstub.h>
+#include <nuttx/nuttx.h>
+
+#include <fcntl.h>
+#include <poll.h>
+#include <string.h>
+#include <debug.h>
+
+/****************************************************************************
+ * Private Types
+ ****************************************************************************/
+
+struct uart_gdbstub_s
+{
+  FAR struct uart_dev_s *dev;
+  FAR struct uart_dev_s *console;
+  FAR struct gdb_state_s *state;
+  struct file file;
+  struct pollfd fds;
+  struct notifier_block nb;
+};
+
+/****************************************************************************
+ * Private Data
+ ****************************************************************************/
+
+static FAR struct uart_gdbstub_s *g_uart_gdbstub;
+
+/****************************************************************************
+ * Private Functions prototypes
+ ****************************************************************************/
+
+static int uart_gdbstub_ctrlc(FAR struct uart_dev_s *dev,
+                              FAR unsigned int *status);
+
+/****************************************************************************
+ * Private Functions
+ ****************************************************************************/
+
+static void uart_gdbstub_poll(FAR struct pollfd *fds)
+{
+  FAR struct uart_gdbstub_s *uart_gdbstub = fds->arg;
+
+  if (fds->revents & POLLIN)
+    {
+      fds->revents &= ~POLLIN;
+      uart_gdbstub_ctrlc(uart_gdbstub->dev, NULL);
+    }
+}
+
+static void uart_gdbstub_attach(FAR struct uart_gdbstub_s *uart_gdbstub)
+{
+  int ret;
+
+  ret = file_open(&uart_gdbstub->file, CONFIG_SERIAL_GDBSTUB_PATH,
+                  O_RDWR | O_NONBLOCK);
+  if (ret >= 0)
+    {
+      uart_gdbstub->fds.arg = uart_gdbstub;
+      uart_gdbstub->fds.events = POLLIN;
+      uart_gdbstub->fds.cb = uart_gdbstub_poll;
+      file_poll(&uart_gdbstub->file, &uart_gdbstub->fds, true);
+    }
+}
+
+/****************************************************************************
+ * Name: uart_gdbstub_panic_callback
+ *
+ * Description:
+ *   This is panic callback for gdbstub, If a crash occurs,
+ *   you can debug it through gdb
+ *
+ ****************************************************************************/
+
+static int uart_gdbstub_panic_callback(FAR struct notifier_block *nb,
+                                       unsigned long action, FAR void *data)
+{
+  FAR struct uart_gdbstub_s *uart_gdbstub =
+    container_of(nb, struct uart_gdbstub_s, nb);
+#if CONFIG_SERIAL_GDBSTUB_PANIC_TIMEOUT != 0
+  FAR const struct uart_ops_s *ops = NULL;
+  unsigned int base;
+#endif
+
+  if (action != PANIC_KERNEL_FINAL)
+    {
+      return 0;
+    }
+
+#if CONFIG_SERIAL_GDBSTUB_PANIC_TIMEOUT == 0
+  gdb_console_message(uart_gdbstub->state,
+                      "Enter panic gdbstub mode!\n");
+#else
+  _alert("Press Y/y key in %d seconds to enter gdb debug mode\n",
+         CONFIG_SERIAL_GDBSTUB_PANIC_TIMEOUT);
+  syslog_flush();
+
+  if (uart_gdbstub->console == NULL)
+    {
+      uart_gdbstub->console = uart_gdbstub->dev;
+    }
+
+  ops = uart_gdbstub->console->ops;
+
+  base = clock_systime_ticks();
+  while (true)
+    {
+      if (ops->rxavailable(uart_gdbstub->console))
+        {
+          char ch;
+
+          if (ops->recvbuf)
+            {
+              ops->recvbuf(uart_gdbstub->console, &ch, 1);
+            }
+          else
+            {
+              unsigned int status;
+              ch = ops->receive(uart_gdbstub->console, &status);
+            }
+
+          if (ch == 'Y' || ch == 'y')
+            {
+              break;
+            }
+        }
+
+      if ((clock_systime_ticks()) - base >=
+           SEC2TICK(CONFIG_SERIAL_GDBSTUB_PANIC_TIMEOUT))
+        {
+          _alert("%d seconds passed, exit now\n",
+                 CONFIG_SERIAL_GDBSTUB_PANIC_TIMEOUT);
+          return 0;
+        }
+    }
+#endif
+
+#ifndef CONFIG_SERIAL_GDBSTUB_AUTO_ATTACH
+  uart_gdbstub_attach(uart_gdbstub);
+#endif
+
+  _alert("Enter panic gdbstub mode, plase use gdb connect to debug\n");
+  _alert("Please use gdb of the corresponding architecture to "
+         "connect to nuttx");
+  _alert("such as: arm-none-eabi-gdb nuttx -ex \"set "
+         "target-charset ASCII\" -ex \"target remote /dev/ttyUSB0\"\n");
+
+  syslog_flush();
+  gdb_process(uart_gdbstub->state, GDB_STOPREASON_NONE, NULL);
+  return 0;
+}
+
+/****************************************************************************
+ * Name: uart_gdbstub_ctrlc
+ *
+ * Description:
+ *   This is uart receive callback in interruption.
+ *   The function is to accept the initial connection of Ctrl c and gdb.
+ *
+ ****************************************************************************/
+
+static int uart_gdbstub_ctrlc(FAR struct uart_dev_s *dev,
+                              FAR unsigned int *status)
+{
+  uart_disablerxint(dev);
+  gdb_process(g_uart_gdbstub->state, GDB_STOPREASON_CTRLC, NULL);
+  uart_enablerxint(dev);
+  return 0;
+}
+
+/****************************************************************************
+ * Name: uart_gdbstub_receive
+ *
+ * Description:
+ *   This is gdbstub receive char function.
+ *
+ ****************************************************************************/
+
+static ssize_t uart_gdbstub_receive(FAR void *priv, FAR void *buf,
+                                    size_t len)
+{
+  FAR struct uart_gdbstub_s *uart_gdbstub = priv;
+  FAR uart_dev_t *dev = uart_gdbstub->dev;
+  FAR struct uart_buffer_s *rxbuf = &dev->recv;
+  FAR char *ptr = buf;
+  unsigned int state;
+  size_t tail = rxbuf->tail;
+  size_t head = rxbuf->head;
+  size_t avail = head >= tail ? head - tail : rxbuf->size - tail + head;
+  size_t i = 0;
+
+  while (i < len && avail-- > 0)
+    {
+      ptr[i++] = rxbuf->buffer[tail++];
+      if (tail >= rxbuf->size)
+        {
+          tail = 0;
+        }
+    }
+
+  rxbuf->tail = tail;
+
+  while (i < len)
+    {
+      if (dev->ops->rxavailable(dev))
+        {
+          if (dev->ops->recvbuf)
+            {
+              i += dev->ops->recvbuf(dev, ptr + i, len - i);
+            }
+          else
+            {
+              ptr[i++] = dev->ops->receive(dev, &state);
+            }
+        }
+    }
+
+  return len;
+}
+
+/****************************************************************************
+ * Name: uart_gdbstub_send
+ *
+ * Description:
+ *   This is gdbstub send char function.
+ *
+ ****************************************************************************/
+
+static ssize_t uart_gdbstub_send(FAR void *priv, FAR const void *buf,
+                                 size_t len)
+{
+  FAR struct uart_gdbstub_s *uart_gdbstub = priv;
+  FAR uart_dev_t *dev = uart_gdbstub->dev;
+  FAR const char *ptr = buf;
+  size_t i = 0;
+
+  while (i < len)
+    {
+      if (dev->ops->txready(dev))
+        {
+          if (dev->ops->sendbuf)
+            {
+              i += dev->ops->sendbuf(dev, ptr + i, len - i);
+            }
+          else
+            {
+              dev->ops->send(dev, ptr[i++]);
+            }
+        }
+    }
+
+  while (!dev->ops->txempty(dev));
+
+  return len;
+}
+
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Name: uart_gdbstub_register
+ *
+ * Description:
+ *   Use the uart device to register gdbstub.
+ *   gdbstub run with serial interrupt.
+ *
+ ****************************************************************************/
+
+int uart_gdbstub_register(FAR uart_dev_t *dev, FAR const char *path)
+{
+  FAR struct uart_gdbstub_s *uart_gdbstub;
+
+  if (g_uart_gdbstub == NULL)
+    {
+      uart_gdbstub = kmm_zalloc(sizeof(struct uart_gdbstub_s));
+      if (uart_gdbstub == NULL)
+        {
+          return -ENOMEM;
+        }
+
+      g_uart_gdbstub = uart_gdbstub;
+    }
+  else
+    {
+      uart_gdbstub = g_uart_gdbstub;
+    }
+
+  if (dev->isconsole && uart_gdbstub->console == NULL)
+    {
+      uart_gdbstub->console = dev;
+    }
+
+  if (strcmp(path, CONFIG_SERIAL_GDBSTUB_PATH) != 0)
+    {
+      return 0;
+    }
+
+  uart_gdbstub->state = gdb_state_init(uart_gdbstub_send,
+                                       uart_gdbstub_receive,
+                                       NULL, uart_gdbstub);
+  if (uart_gdbstub->state == NULL)
+    {
+      kmm_free(uart_gdbstub);
+      return -ENOMEM;
+    }
+
+  uart_gdbstub->dev = dev;
+  uart_gdbstub->nb.notifier_call = uart_gdbstub_panic_callback;
+  panic_notifier_chain_register(&uart_gdbstub->nb);
+
+#ifdef CONFIG_SERIAL_GDBSTUB_AUTO_ATTACH
+  uart_gdbstub_attach(uart_gdbstub);
+#  ifdef CONFIG_SERIAL_GDBSTUB_WAIT_CONNECT
+  uart_gdbstub_ctrlc(dev, NULL);
+#  endif
+#endif
+  return 0;
+}

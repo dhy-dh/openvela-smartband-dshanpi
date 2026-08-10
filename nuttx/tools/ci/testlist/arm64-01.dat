@@ -1,0 +1,19 @@
+/arm64
+
+# error: unknown type name 'g_interrupt_context'
+-fvp-armv8r:citest
+
+-vdk-armv8r:nsh
+-vdk-armv8r:nsh_smp
+
+-imx93-evk:bootloader
+
+# arm64 Boards build by CMake
+CMake,qemu-armv8a:citest
+CMake,qemu-armv8a:citest_smp
+CMake,qemu-armv8a:nsh
+CMake,qemu-armv8a:nsh_fiq
+CMake,qemu-armv8a:nsh_gicv2
+CMake,qemu-armv8a:nsh_smp
+CMake,qemu-armv8a:nsh_smp_tickless
+CMake,qemu-armv8a:sotest

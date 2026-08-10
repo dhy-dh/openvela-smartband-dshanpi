@@ -1,0 +1,137 @@
+cc_library_headers {
+    name: "nuttx_libc_headers",
+    generated_headers: [
+        "nuttx_headers_gen",
+    ],
+    export_generated_headers: ["nuttx_headers_gen"],
+    proprietary: true,
+}
+
+cc_defaults {
+    name: "nuttx_libc_defaults",
+    cflags: [
+        "-DCONFIG_DISABLE_MOUNTPOINT",
+        "-DCONFIG_HAVE_DOUBLE",
+        "-DCONFIG_HAVE_FLOAT",
+        "-DCONFIG_HAVE_LONG_DOUBLE",
+        "-DCONFIG_HAVE_LONG_LONG",
+        "-DCONFIG_LIBC_FLOATINGPOINT",
+        "-DCONFIG_LIBC_NETDB",
+        "-DCONFIG_LIBC_NUMBERED_ARGS",
+        "-DCONFIG_LIBC_PRINT_EXTENSION",
+        "-DCONFIG_LIBC_SCANSET",
+        "-DCONFIG_STDIO_DISABLE_BUFFERING",
+        "-DCONFIG_STREAM_BASE64_BUFFER_SIZE=128",
+        "-DCONFIG_STREAM_HEXDUMP_BUFFER_SIZE=128",
+        "-DCONFIG_STREAM_OUT_BUFFER_SIZE=64",
+        "-DCONFIG_NFILE_DESCRIPTORS_PER_BLOCK=16",
+        "-DDEBUGASSERT=assert",
+        "-DFAR=",
+        "-DOK=0",
+        "-D_NX_GETERRVAL(r)=(-errno)",
+        "-Dget_errno()=errno",
+        "-Dset_errno(e)=do{errno = (int)(e);}while(0)",
+    ],
+    proprietary: true,
+}
+
+genrule {
+    name: "nuttx_headers_gen",
+    srcs: [
+        "include/debug.h",
+        "include/netdb.h",
+        "include/nuttx/atomic.h",
+        "include/nuttx/compiler.h",
+        "include/nuttx/crc32.h",
+        "include/nuttx/fs/fs.h",
+        "include/nuttx/fs/ioctl.h",
+        "include/nuttx/fs/uio.h",
+        "include/nuttx/kmalloc.h",
+        "include/nuttx/lib/lib.h",
+        "include/nuttx/mm/gran.h",
+        "include/nuttx/mm/map.h",
+        "include/nuttx/mutex_type.h",
+        "include/nuttx/net/dns.h",
+        "include/nuttx/net/ethernet.h",
+        "include/nuttx/net/netconfig.h",
+        "include/nuttx/note/note_driver.h",
+        "include/nuttx/percpu.h",
+        "include/nuttx/queue.h",
+        "include/nuttx/sched_note.h",
+        "include/nuttx/semaphore_type.h",
+        "include/nuttx/spawn.h",
+        "include/nuttx/spinlock_type.h",
+        "include/nuttx/streams.h",
+        "include/sys/queue.h",
+    ],
+    cmd: "mkdir -p $(genDir)/nuttx/fs; " +
+         "mkdir -p $(genDir)/nuttx/lib; " +
+         "mkdir -p $(genDir)/nuttx/mm; " +
+         "mkdir -p $(genDir)/nuttx/net; " +
+         "mkdir -p $(genDir)/nuttx/note; " +
+         "mkdir -p $(genDir)/sys; " +
+         "touch $(out); " +
+         "for f in $(in); do " +
+         "cp $$f $(genDir)/$${f#*include/};" +
+         "done;",
+    out: [
+        "debug.h",
+        "netdb.h",
+        "nuttx/atomic.h",
+        "nuttx/compiler.h",
+        "nuttx/config.h",
+        "nuttx/crc32.h",
+        "nuttx/fs/fs.h",
+        "nuttx/fs/ioctl.h",
+        "nuttx/fs/uio.h",
+        "nuttx/kmalloc.h",
+        "nuttx/lib/lib.h",
+        "nuttx/mm/gran.h",
+        "nuttx/mm/map.h",
+        "nuttx/mutex_type.h",
+        "nuttx/net/dns.h",
+        "nuttx/net/ethernet.h",
+        "nuttx/net/netconfig.h",
+        "nuttx/note/note_driver.h",
+        "nuttx/percpu.h",
+        "nuttx/queue.h",
+        "nuttx/sched_note.h",
+        "nuttx/semaphore_type.h",
+        "nuttx/spawn.h",
+        "nuttx/spinlock_type.h",
+        "nuttx/streams.h",
+        "sys/queue.h",
+    ],
+}
+
+cc_library_static {
+    name: "libnuttx_libc",
+    header_libs: [
+        "nuttx_libc_headers",
+        "kernel_modules_headers",
+    ],
+    srcs: [
+        "libs/libc/misc/lib_crc32.c",
+        "libs/libc/netdb/lib_freeaddrinfo.c",
+        "libs/libc/netdb/lib_getaddrinfo.c",
+        "libs/libc/netdb/lib_gethostentbynamer.c",
+        "libs/libc/netdb/lib_rexec.c",
+        "libs/libc/stream/lib_dtoa_data.c",
+        "libs/libc/stream/lib_dtoa_engine.c",
+        "libs/libc/stream/lib_libosprintf.c",
+        "libs/libc/stream/lib_libvscanf.c",
+        "libs/libc/stream/lib_libvsprintf.c",
+        "libs/libc/stream/lib_ultoa_invert.c",
+        "libs/libc/stream/lib_libnoflush.c",
+        "libs/libc/stream/lib_meminstream.c",
+        "libs/libc/stream/lib_memoutstream.c",
+        "libs/libc/stream/lib_stdoutstream.c",
+    ],
+    cflags: [
+        "-DCONFIG_NET_RPMSG",
+        "-DERROR=-1",
+    ],
+    defaults : [ "nuttx_libc_defaults" ],
+    local_include_dirs:["libs/libc/"],
+    proprietary: true,
+}

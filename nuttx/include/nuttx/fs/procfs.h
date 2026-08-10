@@ -1,0 +1,539 @@
+/****************************************************************************
+ * include/nuttx/fs/procfs.h
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ *
+ ****************************************************************************/
+
+#ifndef __INCLUDE_NUTTX_FS_PROCFS_H
+#define __INCLUDE_NUTTX_FS_PROCFS_H
+
+/****************************************************************************
+ * Included Files
+ ****************************************************************************/
+
+#include <nuttx/config.h>
+#include <nuttx/fs/fs.h>
+#include <nuttx/mm/mm.h>
+
+/****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
+
+/* Data entry declaration prototypes ****************************************/
+
+/* Procfs operations are a subset of the mountpt_operations */
+
+struct procfs_operations
+{
+  /* The procfs open method differs from the driver open method
+   * because it receives (1) the inode that contains the procfs
+   * private data, (2) the relative path into the procfs, and (3)
+   * information to manage privileges.
+   */
+
+  CODE int     (*open)(FAR struct file *filep, FAR const char *relpath,
+                       int oflags, mode_t mode);
+
+  /* The following methods must be identical in signature and position
+   * because the struct file_operations and struct mountpt_operations are
+   * treated like unions.
+   */
+
+  CODE int     (*close)(FAR struct file *filep);
+  CODE ssize_t (*read)(FAR struct file *filep, FAR char *buffer,
+                       size_t buflen);
+  CODE ssize_t (*write)(FAR struct file *filep, FAR const char *buffer,
+                        size_t buflen);
+  CODE int     (*poll)(FAR struct file *filep, FAR struct pollfd *fds,
+                       bool setup);
+
+  /* Directory operations */
+
+  CODE int     (*opendir)(FAR const char *relpath,
+                          FAR struct fs_dirent_s **dir);
+  CODE int     (*closedir)(FAR struct fs_dirent_s *dir);
+  CODE int     (*readdir)(FAR struct fs_dirent_s *dir,
+                          FAR struct dirent *entry);
+  CODE int     (*rewinddir)(FAR struct fs_dirent_s *dir);
+
+  /* Operations on paths */
+
+  CODE int     (*stat)(FAR const char *relpath, FAR struct stat *buf);
+};
+
+/* Procfs handler prototypes ************************************************/
+
+/* These are the types of entries that may appear in the procfs: */
+
+enum procfs_entry_e
+{
+  PROCFS_UNKOWN_TYPE = 0, /* Unknown type */
+  PROCFS_FILE_TYPE,       /* File type */
+  PROCFS_DIR_TYPE,        /* Directory type */
+};
+
+/* This is a procfs entry that each handler should provide to supply
+ * specific operations for file and directory handling.
+ */
+
+struct procfs_entry_s
+{
+  FAR const char *pathpattern;
+  FAR const struct procfs_operations *ops;
+  uint8_t type;
+  mode_t mode;
+  FAR void *priv;
+};
+
+/* Specifies the common elements for an open file in the procfs
+ * file system.  This structure should be sub-classed by handlers
+ * to add their own specific data elements to the context.
+ */
+
+struct procfs_file_s
+{
+  FAR const struct procfs_entry_s *procfsentry;
+};
+
+/* The generic proc/ pseudo directory structure */
+
+struct procfs_dir_priv_s
+{
+  struct fs_dirent_s dir;                       /* VFS directory structure */
+  uint8_t level;                                /* Directory level.  Currently 0 or 1 */
+  uint16_t index;                               /* Index to the next directory entry */
+  uint16_t nentries;                            /* Number of directory entries */
+  FAR const struct procfs_entry_s *procfsentry; /* Pointer to procfs handler entry */
+};
+
+/* An entry for procfs_register_meminfo */
+
+struct mallinfo;
+struct mm_heap_s;
+struct mm_memdump_s;
+
+/* Function pointer types for memory info handlers */
+
+typedef struct mallinfo (*mm_mallinfo_handler_t)(FAR struct mm_heap_s *heap);
+typedef void (*mm_memdump_handler_t)(FAR struct mm_heap_s *heap,
+                                     FAR const struct mm_memdump_s *dump);
+
+struct procfs_meminfo_entry_s
+{
+  FAR const char *name;
+  FAR struct mm_heap_s *heap;
+  FAR struct procfs_meminfo_entry_s *next;
+  mm_mallinfo_handler_t mallinfo;
+  mm_memdump_handler_t memdump;
+  int refs;                /* Reference count for safe traversal */
+#ifdef CONFIG_MM_RECORD_STACK
+
+  /* This is dynamic control flag whether to turn on backtrace in the heap,
+   * you can set it by /proc/memdump.
+   */
+
+  bool backtrace;
+#endif
+};
+
+/****************************************************************************
+ * Public Function Prototypes
+ ****************************************************************************/
+
+#ifdef __cplusplus
+#define EXTERN extern "C"
+extern "C"
+{
+#else
+#define EXTERN extern
+#endif
+
+/****************************************************************************
+ * Name: procfs_memcpy
+ *
+ * Description:
+ *   procfs/ file data may be read by the user with different user buffer
+ *   sizes to receive the data.  If the amount of data to be returned is
+ *   large or if the callers receive buffer is small, then multiple read
+ *   operations will be required.
+ *
+ *   If multiple read operations are required, then each read operation will
+ *   be identical accept that file position (f_pos) will be incremented with
+ *   each read:  f_pos must be incremented by the read method after each
+ *   read operation to provide the 'offset' for the next read.
+ *
+ *   procfs_memcpy() is a helper function.  Each read() method should
+ *   provide data in a local data buffer ('src' and 'srclen').  This
+ *   will transfer the data to the user receive buffer ('dest' and
+ *   'destlen'), respecting both (1) the size of the destination buffer so
+ *   that it will write beyond the user receiver and (1) the file position,
+ *   'offset'.
+ *
+ *   This function will skip over data until the under of bytes specified
+ *   by 'offset' have been skipped.  Then it will transfer data from the
+ *   the procfs/ 'src' buffer into the user receive buffer.  No more than
+ *   'destlen' bytes will be transferred.
+ *
+ * Input Parameters:
+ *   src     - The address of the intermediate procfs/ buffer containing the
+ *             data to be returned.
+ *   srclen  - The number of bytes of data in the 'src' buffer
+ *   dest    - The address of the user's receive buffer.
+ *   destlen - The size (in bytes) of the user's receive buffer.
+ *   offset  - On input, this is the number of bytes to skip before returning
+ *             data;  If bytes were skipped, this offset will be decremented.
+ *             Data will not be transferred until this offset decrements to
+ *             zero.
+ *
+ * Returned Value:
+ *   The number of bytes actually transferred into the user's receive buffer.
+ *
+ ****************************************************************************/
+
+size_t procfs_memcpy(FAR const char *src, size_t srclen,
+                     FAR char *dest, size_t destlen,
+                     FAR off_t *offset);
+
+/****************************************************************************
+ * Name: procfs_snprintf
+ *
+ * Description:
+ *   This function is same with snprintf, except return values.
+ *   If buf has no enough space and output was truncated due to size limit,
+ *   snprintf:        return formatted string len.
+ *   procfs_snprintf: return string len which has written to buf.
+ *
+ * Input Parameters:
+ *   Same with snprintf
+ *
+ * Returned Value:
+ *   See Description.
+ *
+ ****************************************************************************/
+
+int procfs_snprintf(FAR char *buf, size_t size,
+                    FAR const IPTR char *format, ...) printf_like(3, 4);
+
+/****************************************************************************
+ * Name: procfs_sprintf
+ *
+ * Description:
+ *   This function used to continous format string and copy it to buffer.
+ *   Every single string length must be smaller then LINEBUF_SIZE.
+ *
+ * Input Parameters:
+ *   buf          - The address of the user's receive buffer.
+ *   size         - The size (in bytes) of the user's receive buffer.
+ *   offset       - On input, when *offset is larger the 0 , this is the
+ *                  number of bytes to skip before returning data; If bytes
+ *                  were skipped, this *offset will be decremented. when it
+ *                  decrements to a negative value, -*offset is the number of
+ *                  data copied to buffer.
+ *
+ ****************************************************************************/
+
+void procfs_sprintf(FAR char *buf, size_t size, FAR off_t *offset,
+                    FAR const IPTR char *format, ...) printf_like(4, 5);
+
+/****************************************************************************
+ * Name: procfs_register
+ *
+ * Description:
+ *   Add a new entry to the procfs file system.
+ *
+ *   NOTE: This function should be called *prior* to mounting the procfs
+ *   file system to prevent concurrency problems with the modification of
+ *   the procfs data set while it is in use.
+ *
+ * Input Parameters:
+ *   entry - Describes the entry to be registered.
+ *
+ * Returned Value:
+ *   Zero (OK) on success; a negated errno value on failure
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_FS_PROCFS_REGISTER
+int procfs_register(FAR const struct procfs_entry_s *entry);
+#endif
+
+/****************************************************************************
+ * Name: procfs_register_meminfo
+ *
+ * Description:
+ *   Add a new meminfo entry to the procfs file system.
+ *   Allocates an entry dynamically and initializes it.
+ *
+ * Input Parameters:
+ *   name      - The name of the memory region
+ *   heap      - The heap to register
+ *   mallinfo  - Optional custom mallinfo handler (NULL to use default)
+ *   memdump   - Optional custom memdump handler (NULL to use default)
+ *
+ * Returned Value:
+ *   Pointer to the allocated entry on success, NULL on failure.
+ *   This pointer must be passed to procfs_unregister_meminfo.
+ *
+ ****************************************************************************/
+
+FAR struct procfs_meminfo_entry_s *
+procfs_register_meminfo(FAR const char *name, FAR struct mm_heap_s *heap,
+                        mm_mallinfo_handler_t mallinfo,
+                        mm_memdump_handler_t memdump);
+
+/****************************************************************************
+ * Name: procfs_unregister_meminfo
+ *
+ * Description:
+ *   Remove a meminfo entry from the procfs file system.
+ *   Frees the entry that was allocated by procfs_register_meminfo.
+ *
+ * Input Parameters:
+ *   entry - The entry returned by procfs_register_meminfo.
+ *
+ ****************************************************************************/
+
+void procfs_unregister_meminfo(FAR struct procfs_meminfo_entry_s *entry);
+
+/****************************************************************************
+ * Name: procfs_create_u8
+ *
+ * Description:
+ *   Create a procfs entry for an 8-bit unsigned integer variable.
+ *
+ * Input Parameters:
+ *   path  - The path of the procfs entry
+ *   mode  - The mode (permissions) for the procfs entry
+ *   value - Pointer to the 8-bit unsigned integer variable
+ *
+ * Returned Value:
+ *   Pointer to the procfs entry on success; NULL on failure
+ *
+ ****************************************************************************/
+
+FAR struct procfs_entry_s *
+procfs_create_u8(FAR const char *path, mode_t mode,
+                 FAR uint8_t *value);
+
+/****************************************************************************
+ * Name: procfs_create_u16
+ *
+ * Description:
+ *   Create a procfs entry for a 16-bit unsigned integer variable.
+ *
+ * Input Parameters:
+ *   path  - The path of the procfs entry
+ *   mode  - The mode (permissions) for the procfs entry
+ *   value - Pointer to the 16-bit unsigned integer variable
+ *
+ * Returned Value:
+ *   Pointer to the procfs entry on success; NULL on failure
+ *
+ ****************************************************************************/
+
+FAR struct procfs_entry_s *
+procfs_create_u16(FAR const char *path, mode_t mode,
+                  FAR uint16_t *value);
+
+/****************************************************************************
+ * Name: procfs_create_u32
+ *
+ * Description:
+ *   Create a procfs entry for a 32-bit unsigned integer variable.
+ *
+ * Input Parameters:
+ *   path  - The path of the procfs entry
+ *   mode  - The mode (permissions) for the procfs entry
+ *   value - Pointer to the 32-bit unsigned integer variable
+ *
+ * Returned Value:
+ *   Pointer to the procfs entry on success; NULL on failure
+ *
+ ****************************************************************************/
+
+FAR struct procfs_entry_s *
+procfs_create_u32(FAR const char *path, mode_t mode,
+                  FAR uint32_t *value);
+
+/****************************************************************************
+ * Name: procfs_create_u64
+ *
+ * Description:
+ *   Create a procfs entry for a 64-bit unsigned integer variable.
+ *
+ * Input Parameters:
+ *   path  - The path of the procfs entry
+ *   mode  - The mode (permissions) for the procfs entry
+ *   value - Pointer to the 64-bit unsigned integer variable
+ *
+ * Returned Value:
+ *   Pointer to the procfs entry on success; NULL on failure
+ *
+ ****************************************************************************/
+
+FAR struct procfs_entry_s *
+procfs_create_u64(FAR const char *path, mode_t mode,
+                  FAR uint64_t *value);
+
+/****************************************************************************
+ * Name: procfs_create_ulong
+ *
+ * Description:
+ *   Create a procfs entry for an unsigned long variable.
+ *
+ * Input Parameters:
+ *   path  - The path of the procfs entry
+ *   mode  - The mode (permissions) for the procfs entry
+ *   value - Pointer to the unsigned long variable
+ *
+ * Returned Value:
+ *   Pointer to the procfs entry on success; NULL on failure
+ *
+ ****************************************************************************/
+
+FAR struct procfs_entry_s *
+procfs_create_ulong(FAR const char *path, mode_t mode,
+                    FAR unsigned long *value);
+
+/****************************************************************************
+ * Name: procfs_create_x8
+ *
+ * Description:
+ *   Create a procfs entry for an 8-bit hexadecimal variable.
+ *
+ * Input Parameters:
+ *   path  - The path of the procfs entry
+ *   mode  - The mode (permissions) for the procfs entry
+ *   value - Pointer to the 8-bit variable to be displayed in hex
+ *
+ * Returned Value:
+ *   Pointer to the procfs entry on success; NULL on failure
+ *
+ ****************************************************************************/
+
+FAR struct procfs_entry_s *
+procfs_create_x8(FAR const char *path, mode_t mode,
+                 FAR uint8_t *value);
+
+/****************************************************************************
+ * Name: procfs_create_x16
+ *
+ * Description:
+ *   Create a procfs entry for a 16-bit hexadecimal variable.
+ *
+ * Input Parameters:
+ *   path  - The path of the procfs entry
+ *   mode  - The mode (permissions) for the procfs entry
+ *   value - Pointer to the 16-bit variable to be displayed in hex
+ *
+ * Returned Value:
+ *   Pointer to the procfs entry on success; NULL on failure
+ *
+ ****************************************************************************/
+
+FAR struct procfs_entry_s *
+procfs_create_x16(FAR const char *path, mode_t mode,
+                  FAR uint16_t *value);
+
+/****************************************************************************
+ * Name: procfs_create_x32
+ *
+ * Description:
+ *   Create a procfs entry for a 32-bit hexadecimal variable.
+ *
+ * Input Parameters:
+ *   path  - The path of the procfs entry
+ *   mode  - The mode (permissions) for the procfs entry
+ *   value - Pointer to the 32-bit variable to be displayed in hex
+ *
+ * Returned Value:
+ *   Pointer to the procfs entry on success; NULL on failure
+ *
+ ****************************************************************************/
+
+FAR struct procfs_entry_s *
+procfs_create_x32(FAR const char *path, mode_t mode,
+                  FAR uint32_t *value);
+
+/****************************************************************************
+ * Name: procfs_create_x64
+ *
+ * Description:
+ *   Create a procfs entry for a 64-bit hexadecimal variable.
+ *
+ * Input Parameters:
+ *   path  - The path of the procfs entry
+ *   mode  - The mode (permissions) for the procfs entry
+ *   value - Pointer to the 64-bit variable to be displayed in hex
+ *
+ * Returned Value:
+ *   Pointer to the procfs entry on success; NULL on failure
+ *
+ ****************************************************************************/
+
+FAR struct procfs_entry_s *
+procfs_create_x64(FAR const char *path, mode_t mode,
+                  FAR uint64_t *value);
+
+/****************************************************************************
+ * Name: procfs_create_size_t
+ *
+ * Description:
+ *   Create a procfs entry for a size_t variable.
+ *
+ * Input Parameters:
+ *   path  - The path of the procfs entry
+ *   mode  - The mode (permissions) for the procfs entry
+ *   value - Pointer to the size_t variable
+ *
+ * Returned Value:
+ *   Pointer to the procfs entry on success; NULL on failure
+ *
+ ****************************************************************************/
+
+FAR struct procfs_entry_s *
+procfs_create_size_t(FAR const char *path, mode_t mode,
+                     FAR size_t *value);
+
+/****************************************************************************
+ * Name: procfs_create_bool
+ *
+ * Description:
+ *   Create a procfs entry for a boolean variable.
+ *
+ * Input Parameters:
+ *   path  - The path of the procfs entry
+ *   mode  - The mode (permissions) for the procfs entry
+ *   value - Pointer to the boolean variable
+ *
+ * Returned Value:
+ *   Pointer to the procfs entry on success; NULL on failure
+ *
+ ****************************************************************************/
+
+FAR struct procfs_entry_s *
+procfs_create_bool(FAR const char *path, mode_t mode,
+                   FAR bool *value);
+
+#undef EXTERN
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __INCLUDE_NUTTX_FS_PROCFS_H */

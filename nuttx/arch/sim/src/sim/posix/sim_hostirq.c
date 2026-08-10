@@ -1,0 +1,213 @@
+/****************************************************************************
+ * arch/sim/src/sim/posix/sim_hostirq.c
+ *
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ *
+ ****************************************************************************/
+
+/****************************************************************************
+ * Included Files
+ ****************************************************************************/
+
+#include <signal.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <string.h>
+
+#include "sim_internal.h"
+
+/****************************************************************************
+ * Public Data
+ ****************************************************************************/
+
+/****************************************************************************
+ * Private Data
+ ****************************************************************************/
+
+static sigset_t g_sigset;
+
+/****************************************************************************
+ * Private Types
+ ****************************************************************************/
+
+union sigset_u
+{
+  uint64_t flags;
+  sigset_t sigset;
+};
+
+/****************************************************************************
+ * Private Functions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Name: up_handle_irq
+ ****************************************************************************/
+
+static void up_handle_irq(int irq, siginfo_t *info, void *context)
+{
+  sim_doirq(irq, context);
+}
+
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Name: up_irq_flags
+ *
+ * Description:
+ *   Get the current irq flags
+ *
+ ****************************************************************************/
+
+uint64_t up_irq_flags(void)
+{
+  union sigset_u omask;
+
+  pthread_sigmask(SIG_SETMASK, NULL, &omask.sigset);
+
+  return omask.flags;
+}
+
+/****************************************************************************
+ * Name: up_irq_save
+ *
+ * Description:
+ *   Disable interrupts and returned the mask before disabling them.
+ *
+ ****************************************************************************/
+
+uint64_t up_irq_save(void)
+{
+  union sigset_u nmask;
+  union sigset_u omask;
+
+  memcpy(&nmask.sigset, &g_sigset, sizeof(nmask.sigset));
+  pthread_sigmask(SIG_SETMASK, &nmask.sigset, &omask.sigset);
+
+  return omask.flags;
+}
+
+/****************************************************************************
+ * Name: up_irq_restore
+ *
+ * Input Parameters:
+ *   flags - the mask used to restore interrupts
+ *
+ * Description:
+ *   Re-enable interrupts using the specified mask in flags argument.
+ *
+ ****************************************************************************/
+
+void up_irq_restore(uint64_t flags)
+{
+  union sigset_u nmask;
+
+  sigemptyset(&nmask.sigset);
+  nmask.flags = flags;
+  pthread_sigmask(SIG_SETMASK, &nmask.sigset, NULL);
+}
+
+/****************************************************************************
+ * Name: up_irq_enable
+ *
+ * Description:
+ *   Enable interrupts.
+ *
+ ****************************************************************************/
+
+void up_irq_enable(void)
+{
+  up_irq_restore(0);
+}
+
+/****************************************************************************
+ * Name: up_enable_irq
+ *
+ * Description:
+ *   Enable the IRQ specified by 'irq'
+ *
+ ****************************************************************************/
+
+void up_enable_irq(int irq)
+{
+  struct sigaction act;
+  sigset_t set;
+
+  /* Add the signal to the set */
+
+  sigaddset(&g_sigset, irq);
+
+  /* Register signal handler */
+
+  memset(&act, 0, sizeof(act));
+  act.sa_sigaction = up_handle_irq;
+  act.sa_flags     = SA_SIGINFO;
+  sigfillset(&act.sa_mask);
+
+  /* Allow SIGSTOP signal to be received when signal is blocked,
+   * so that gdb can stop normally when used (ctrl-Z).
+   */
+
+  sigdelset(&act.sa_mask, SIGSTOP);
+  sigaction(irq, &act, NULL);
+
+  /* Unmask the signal */
+
+  sigemptyset(&set);
+  sigaddset(&set, irq);
+  pthread_sigmask(SIG_UNBLOCK, &set, NULL);
+}
+
+/****************************************************************************
+ * Name: up_disable_irq
+ *
+ * Description:
+ *   Disable the IRQ specified by 'irq'
+ *
+ ****************************************************************************/
+
+void up_disable_irq(int irq)
+{
+  /* Remove the signal from the set */
+
+  sigdelset(&g_sigset, irq);
+
+  /* Since it's hard to mask the signal on all threads,
+   * let's change the signal handler to ignore instead.
+   */
+
+  signal(irq, SIG_IGN);
+}
+
+/****************************************************************************
+ * Name: host_irqinitialize
+ ****************************************************************************/
+
+void host_irqinitialize(void)
+{
+  /* Default ignore SIGPIPE */
+
+  signal(SIGPIPE, SIG_IGN);
+
+#ifdef CONFIG_SMP
+  /* Register the pause handler */
+
+  sim_init_ipi(SIGUSR1);
+  sim_init_func_call_ipi(SIGUSR2);
+#endif
+}

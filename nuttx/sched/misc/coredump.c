@@ -1,0 +1,1173 @@
+/****************************************************************************
+ * sched/misc/coredump.c
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ *
+ ****************************************************************************/
+
+/****************************************************************************
+ * Included Files
+ ****************************************************************************/
+
+#include <sys/stat.h>
+#include <sys/param.h>
+
+#include <string.h>
+#include <syslog.h>
+#include <debug.h>
+#include <fcntl.h>
+
+#include <nuttx/coredump.h>
+#include <nuttx/elf.h>
+#include <nuttx/sched.h>
+
+#include "sched/sched.h"
+#include "coredump.h"
+
+/****************************************************************************
+ * Private Data
+ ****************************************************************************/
+
+#ifdef PAGESIZE
+#  define ELF_PAGESIZE    PAGESIZE
+#else
+#  define ELF_PAGESIZE    1024
+#endif
+
+#if defined(CONFIG_BOARD_COREDUMP_BLKDEV) || \
+    defined(CONFIG_BOARD_COREDUMP_MTDDEV) || \
+    defined(CONFIG_BOARD_COREDUMP_MEMDEV)
+#  define CONFIG_BOARD_COREDUMP_DEV
+#endif
+
+#define PROGRAM_ALIGNMENT 64
+
+/* Architecture can overwrite the default XCPTCONTEXT alignment */
+
+#ifndef XCPTCONTEXT_ALIGN
+#  define XCPTCONTEXT_ALIGN 16
+#endif
+
+#define PID0_REPLACE  INT32_MAX
+
+/****************************************************************************
+ * Private Types
+ ****************************************************************************/
+
+/* This struct provides a description of the dump information of
+ * memory regions.
+ */
+
+struct elf_dumpinfo_s
+{
+  FAR const struct memory_region_s *regions;
+  FAR struct lib_outstream_s *stream;
+  pid_t                       pid;
+};
+
+/****************************************************************************
+ * Private Data
+ ****************************************************************************/
+
+static uint8_t g_running_regs[XCPTCONTEXT_SIZE]
+               aligned_data(XCPTCONTEXT_ALIGN);
+
+#ifdef CONFIG_BOARD_COREDUMP_COMPRESSION
+static struct lib_lzfoutstream_s  g_lzfstream;
+#endif
+
+#ifdef CONFIG_BOARD_COREDUMP_SYSLOG
+static struct lib_syslogstream_s  g_syslogstream;
+#  ifdef CONFIG_BOARD_COREDUMP_BASE64STREAM
+static struct lib_base64outstream_s g_base64stream;
+#  else
+static struct lib_hexdumpstream_s g_hexstream;
+#  endif
+#endif
+
+#ifdef CONFIG_BOARD_COREDUMP_BLKDEV
+static struct lib_blkoutstream_s g_devstream;
+#elif defined(CONFIG_BOARD_COREDUMP_MTDDEV)
+static struct lib_mtdoutstream_s g_devstream;
+#elif defined(CONFIG_BOARD_COREDUMP_MEMDEV)
+static struct lib_filesistream_s g_devinstream;
+static struct lib_fileoutstream_s g_devstream;
+#endif
+
+#ifdef CONFIG_BOARD_MEMORY_RANGE
+static struct memory_region_s g_memory_region[] =
+  {
+    CONFIG_BOARD_MEMORY_RANGE
+  };
+#endif
+static const struct memory_region_s *g_regions;
+static bool g_stream_initialized;
+
+/****************************************************************************
+ * Private Functions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Private Functions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Name: elf_flush
+ *
+ * Description:
+ *   Flush the out stream
+ *
+ ****************************************************************************/
+
+static int elf_flush(FAR struct elf_dumpinfo_s *cinfo)
+{
+  return lib_stream_flush(cinfo->stream);
+}
+
+/****************************************************************************
+ * Name: elf_emit
+ *
+ * Description:
+ *   Send the dump data to binfmt_outstream_s
+ *
+ ****************************************************************************/
+
+static int elf_emit(FAR struct elf_dumpinfo_s *cinfo,
+                    FAR const void *buf, size_t len)
+{
+  FAR const uint8_t *ptr = buf;
+  size_t total = len;
+  int ret = 0;
+
+  while (total > 0)
+    {
+      ret = lib_stream_puts(cinfo->stream, ptr, total);
+      if (ret < 0)
+        {
+          break;
+        }
+
+      total -= ret;
+      ptr   += ret;
+    }
+
+  return ret < 0 ? ret : len - total;
+}
+
+/****************************************************************************
+ * Name: elf_emit_align
+ *
+ * Description:
+ *   Align the filled data according to the current offset
+ *
+ ****************************************************************************/
+
+static int elf_emit_align(FAR struct elf_dumpinfo_s *cinfo)
+{
+  off_t align = ALIGN_UP(cinfo->stream->nput,
+                         ELF_PAGESIZE) - cinfo->stream->nput;
+  unsigned char null[256];
+  off_t total = align;
+  off_t ret = 0;
+
+  memset(null, 0, sizeof(null));
+
+  while (total > 0)
+    {
+      ret = elf_emit(cinfo, null, total > sizeof(null) ?
+                                 sizeof(null) : total);
+      if (ret <= 0)
+        {
+          break;
+        }
+
+      total -= ret;
+    }
+
+  return ret < 0 ? ret : align;
+}
+
+/****************************************************************************
+ * Name: elf_emit_hdr
+ *
+ * Description:
+ *   Fill the elf header
+ *
+ ****************************************************************************/
+
+static int elf_emit_hdr(FAR struct elf_dumpinfo_s *cinfo,
+                        int segs)
+{
+  Elf_Ehdr ehdr;
+
+  memset(&ehdr, 0, sizeof(ehdr));
+  memcpy(ehdr.e_ident, ELFMAG, EI_MAGIC_SIZE);
+
+  ehdr.e_ident[EI_CLASS]   = ELF_CLASS;
+  ehdr.e_ident[EI_DATA]    = ELF_DATA;
+  ehdr.e_ident[EI_VERSION] = EV_CURRENT;
+  ehdr.e_ident[EI_OSABI]   = ELF_OSABI;
+
+  ehdr.e_type              = ET_CORE;
+  ehdr.e_machine           = EM_ARCH;
+  ehdr.e_version           = EV_CURRENT;
+  ehdr.e_phoff             = sizeof(Elf_Ehdr);
+  ehdr.e_flags             = EF_FLAG;
+  ehdr.e_ehsize            = sizeof(Elf_Ehdr);
+  ehdr.e_phentsize         = sizeof(Elf_Phdr);
+  ehdr.e_phnum             = segs;
+
+  return elf_emit(cinfo, &ehdr, sizeof(ehdr));
+}
+
+/****************************************************************************
+ * Name: elf_exist_hdr
+ *
+ * Description:
+ *   Determine whether there is an elf header in device.
+ *
+ ****************************************************************************/
+
+# if defined(CONFIG_BOARD_COREDUMP_MEMDEV) && \
+     !defined(CONFIG_BOARD_COREDUMP_OVERWRITE)
+static bool elf_exist_hdr(FAR struct lib_instream_s *instream)
+{
+  int ret;
+
+#  ifdef CONFIG_BOARD_COREDUMP_COMPRESSION
+  struct lzf_header_s hdr;
+# else
+  Elf_Ehdr hdr;
+#  endif
+
+  ret = lib_stream_gets(instream, &hdr, sizeof(hdr));
+  if (ret != sizeof(hdr))
+    {
+      return false;
+    }
+
+#  ifdef CONFIG_BOARD_COREDUMP_COMPRESSION
+  return memcmp(hdr.lzf_magic, "ZV", 2) == 0;
+#  else
+  return memcmp(hdr.e_ident, ELFMAG, EI_MAGIC_SIZE) == 0;
+#endif
+}
+#endif
+
+/****************************************************************************
+ * Name: elf_get_ntcb
+ *
+ * Description:
+ *   Calculate the note segment size
+ *
+ ****************************************************************************/
+
+static int elf_get_ntcb(void)
+{
+  int count = 0;
+  int i;
+
+  for (i = 0; i < g_npidhash; i++)
+    {
+      if (nxsched_verify_pid(i))
+        {
+          count++;
+        }
+    }
+
+  return count;
+}
+
+/****************************************************************************
+ * Name: elf_get_note_size
+ *
+ * Description:
+ *   Calculate the note segment size
+ *
+ ****************************************************************************/
+
+static int elf_get_note_size(int stksegs)
+{
+  int total;
+
+  total  = stksegs * (sizeof(Elf_Nhdr) + COREDUMP_INFONAME_SIZE +
+                      sizeof(elf_prstatus_t));
+  total += stksegs * (sizeof(Elf_Nhdr) + COREDUMP_INFONAME_SIZE +
+                      sizeof(elf_prpsinfo_t));
+  return total;
+}
+
+static int elf_get_info_note_size(void)
+{
+  return sizeof(Elf_Nhdr) + COREDUMP_INFONAME_SIZE +
+         sizeof(struct coredump_info_s);
+}
+
+/****************************************************************************
+ * Name: elf_emit_tcb_note
+ *
+ * Description:
+ *   Fill the note segment information from tcb
+ *
+ ****************************************************************************/
+
+static void elf_emit_tcb_note(FAR struct elf_dumpinfo_s *cinfo,
+                              FAR struct tcb_s *tcb)
+{
+  char name[COREDUMP_INFONAME_SIZE];
+  elf_prstatus_t status;
+  elf_prpsinfo_t info;
+  FAR uintptr_t *regs;
+  Elf_Nhdr nhdr;
+  int i;
+
+  memset(&info,   0x0, sizeof(info));
+  memset(&status, 0x0, sizeof(status));
+
+  /* Fill Process info */
+
+  nhdr.n_namesz = sizeof(name);
+  nhdr.n_descsz = sizeof(info);
+  nhdr.n_type   = NT_PRPSINFO;
+
+  elf_emit(cinfo, &nhdr, sizeof(nhdr));
+
+  strlcpy(name, tcb->name, sizeof(name));
+  elf_emit(cinfo, name, sizeof(name));
+
+  info.pr_pid   = tcb->pid;
+  strlcpy(info.pr_fname, tcb->name, sizeof(info.pr_fname));
+  elf_emit(cinfo, &info, sizeof(info));
+
+  /* Fill Process status */
+
+  nhdr.n_descsz = sizeof(status);
+  nhdr.n_type   = NT_PRSTATUS;
+
+  elf_emit(cinfo, &nhdr, sizeof(nhdr));
+  elf_emit(cinfo, name, sizeof(name));
+
+  /* PID 0 means special to GDB, in both GDB stub and core file, replace 0
+   * with a special value.
+   * For core file, if process ID is zero, GDB assign a not used id to it.
+   * For GDB stub, 0 is used to indicate ANY thread, thus also not available.
+   *
+   * Unify the value to PID0_REPLACE to make python script post analysis
+   * easier.
+   */
+
+  status.pr_pid = tcb->pid == 0 ? PID0_REPLACE : tcb->pid;
+
+  if (running_task() == tcb)
+    {
+      if (up_interrupt_context())
+        {
+          regs = (FAR uintptr_t *)running_regs();
+        }
+      else
+        {
+          up_saveusercontext(g_running_regs);
+          regs = (FAR uintptr_t *)g_running_regs;
+        }
+    }
+  else
+    {
+      regs = (FAR uintptr_t *)tcb->xcp.regs;
+    }
+
+  if (regs != NULL)
+    {
+      ssize_t offset = 0;
+
+      memset(status.pr_regs, 0, sizeof(status.pr_regs));
+      for (i = 0; i < g_tcbinfo.regs_num; i++)
+        {
+          FAR const struct reginfo_s *reg = &g_tcbinfo.u.reginfo[i];
+
+          if (reg->coffset != REGINFO_OFFSET_AUTO)
+            {
+              offset = reg->coffset;
+            }
+
+          if (reg->toffset != REGINFO_OFFSET_INVALID)
+            {
+              memcpy((FAR char *)status.pr_regs + offset,
+                     (uint8_t *)regs + reg->toffset, reg->size);
+            }
+
+          offset += reg->size;
+        }
+    }
+
+  elf_emit(cinfo, &status, sizeof(status));
+}
+
+/****************************************************************************
+ * Name: elf_emit_note
+ *
+ * Description:
+ *   Fill the note segment information
+ *
+ ****************************************************************************/
+
+static void elf_emit_note(FAR struct elf_dumpinfo_s *cinfo)
+{
+  FAR struct tcb_s *tcb;
+  int i;
+
+  if (cinfo->pid == INVALID_PROCESS_ID)
+    {
+      for (i = 0; i < g_npidhash; i++)
+        {
+          tcb = nxsched_get_tcb(i);
+          if (tcb)
+            {
+              elf_emit_tcb_note(cinfo, tcb);
+              nxsched_put_tcb(tcb);
+            }
+        }
+    }
+  else
+    {
+      tcb = nxsched_get_tcb(cinfo->pid);
+      if (tcb)
+        {
+          elf_emit_tcb_note(cinfo, tcb);
+          nxsched_put_tcb(tcb);
+        }
+    }
+}
+
+/****************************************************************************
+ * Name: elf_emit_tcb_stack
+ *
+ * Description:
+ *   Fill the task stack information from tcb
+ *
+ ****************************************************************************/
+
+static void elf_emit_tcb_stack(FAR struct elf_dumpinfo_s *cinfo,
+                               FAR struct tcb_s *tcb)
+{
+  uintptr_t buf = 0;
+  uintptr_t sp;
+  size_t len;
+
+  if (running_task() != tcb)
+    {
+      sp = up_getusrsp(tcb->xcp.regs);
+
+      if (sp > (uintptr_t)tcb->stack_base_ptr &&
+          sp < (uintptr_t)tcb->stack_base_ptr + tcb->adj_stack_size)
+        {
+          len = ((uintptr_t)tcb->stack_base_ptr +
+                            tcb->adj_stack_size) - sp;
+          buf = sp;
+        }
+#ifdef CONFIG_STACK_COLORATION
+      else
+        {
+          len = up_check_tcbstack(tcb, tcb->adj_stack_size);
+          buf = (uintptr_t)tcb->stack_base_ptr +
+                           (tcb->adj_stack_size - len);
+        }
+#endif
+    }
+
+  if (buf == 0)
+    {
+      buf = (uintptr_t)tcb->stack_alloc_ptr;
+      len = tcb->adj_stack_size +
+            (tcb->stack_base_ptr - tcb->stack_alloc_ptr);
+    }
+
+  sp  = ALIGN_DOWN(buf, PROGRAM_ALIGNMENT);
+  len = ALIGN_UP(len + (buf - sp), PROGRAM_ALIGNMENT);
+  buf = sp;
+
+  elf_emit(cinfo, (FAR void *)buf, len);
+
+  /* Align to page */
+
+  elf_emit_align(cinfo);
+}
+
+/****************************************************************************
+ * Name: elf_emit_stack
+ *
+ * Description:
+ *   Fill the task stack information
+ *
+ ****************************************************************************/
+
+static void elf_emit_stack(FAR struct elf_dumpinfo_s *cinfo)
+{
+  FAR struct tcb_s *tcb;
+  int i;
+
+  if (cinfo->pid == INVALID_PROCESS_ID)
+    {
+      for (i = 0; i < g_npidhash; i++)
+        {
+          tcb = nxsched_get_tcb(i);
+          if (tcb)
+            {
+              elf_emit_tcb_stack(cinfo, tcb);
+              nxsched_put_tcb(tcb);
+            }
+        }
+    }
+  else
+    {
+      tcb = nxsched_get_tcb(cinfo->pid);
+      if (tcb)
+        {
+          elf_emit_tcb_stack(cinfo, tcb);
+          nxsched_put_tcb(tcb);
+        }
+    }
+}
+
+/****************************************************************************
+ * Name: elf_emit_memory
+ *
+ * Description:
+ *   Fill the note segment information
+ *
+ ****************************************************************************/
+
+static void elf_emit_memory(FAR struct elf_dumpinfo_s *cinfo, int memsegs)
+{
+  int i;
+
+  for (i = 0; i < memsegs; i++)
+    {
+      if (cinfo->regions[i].flags & PF_REGISTER)
+        {
+          FAR uintptr_t *start = (FAR uintptr_t *)cinfo->regions[i].start;
+          FAR uintptr_t *end = (FAR uintptr_t *)cinfo->regions[i].end;
+          uintptr_t buf[64];
+          size_t offset = 0;
+
+          while (start < end)
+            {
+              buf[offset++] = *start++;
+
+              if (offset % (sizeof(buf) / sizeof(uintptr_t)) == 0)
+                {
+                  elf_emit(cinfo, buf, sizeof(buf));
+                  offset = 0;
+                }
+            }
+
+          if (offset != 0)
+            {
+              elf_emit(cinfo, buf, offset * sizeof(uintptr_t));
+            }
+        }
+      else
+        {
+          elf_emit(cinfo, (FAR void *)cinfo->regions[i].start,
+                   cinfo->regions[i].end - cinfo->regions[i].start);
+        }
+
+      /* Align to page */
+
+      elf_emit_align(cinfo);
+    }
+}
+
+/****************************************************************************
+ * Name: elf_emit_info_note
+ *
+ * Description:
+ *   Fill the core info note
+ *
+ ****************************************************************************/
+
+static void elf_emit_info_note(FAR struct elf_dumpinfo_s *cinfo)
+{
+  struct coredump_info_s info;
+  Elf_Nhdr nhdr;
+  char name[COREDUMP_INFONAME_SIZE];
+
+  memset(&info, 0x0, sizeof(info));
+  memset(name, 0x0, sizeof(name));
+
+  nhdr.n_namesz = sizeof(name);
+  nhdr.n_descsz = sizeof(info);
+  nhdr.n_type   = COREDUMP_MAGIC;
+
+  elf_emit(cinfo, &nhdr, sizeof(nhdr));
+
+  strlcpy(name, "NuttX", sizeof(name));
+  elf_emit(cinfo, name, sizeof(name));
+
+  info.size = cinfo->stream->nput + sizeof(info);
+  clock_gettime(CLOCK_REALTIME, &info.time);
+  uname(&info.name);
+
+  elf_emit(cinfo, &info, sizeof(info));
+}
+
+/****************************************************************************
+ * Name: elf_emit_tcb_phdr
+ *
+ * Description:
+ *   Fill the program segment header from tcb
+ *
+ ****************************************************************************/
+
+static void elf_emit_tcb_phdr(FAR struct elf_dumpinfo_s *cinfo,
+                              FAR struct tcb_s *tcb,
+                              FAR Elf_Phdr *phdr, off_t *offset)
+{
+  uintptr_t sp;
+
+  phdr->p_vaddr = 0;
+
+  if (running_task() != tcb)
+    {
+      sp = up_getusrsp(tcb->xcp.regs);
+
+      if (sp > (uintptr_t)tcb->stack_base_ptr &&
+          sp < (uintptr_t)tcb->stack_base_ptr + tcb->adj_stack_size)
+        {
+          phdr->p_filesz = ((uintptr_t)tcb->stack_base_ptr +
+                           tcb->adj_stack_size) - sp;
+          phdr->p_vaddr  = sp;
+        }
+#ifdef CONFIG_STACK_COLORATION
+      else
+        {
+          phdr->p_filesz = up_check_tcbstack(tcb, tcb->adj_stack_size);
+          phdr->p_vaddr  = (uintptr_t)tcb->stack_base_ptr +
+                           (tcb->adj_stack_size - phdr->p_filesz);
+        }
+#endif
+    }
+
+  if (phdr->p_vaddr == 0)
+    {
+      phdr->p_vaddr  = (uintptr_t)tcb->stack_alloc_ptr;
+      phdr->p_filesz = tcb->adj_stack_size +
+                      (tcb->stack_base_ptr - tcb->stack_alloc_ptr);
+    }
+
+  sp = ALIGN_DOWN(phdr->p_vaddr, PROGRAM_ALIGNMENT);
+  phdr->p_filesz = ALIGN_UP(phdr->p_filesz +
+                            (phdr->p_vaddr - sp), PROGRAM_ALIGNMENT);
+  phdr->p_vaddr  = sp;
+
+  phdr->p_type   = PT_LOAD;
+  phdr->p_offset = ALIGN_UP(*offset, ELF_PAGESIZE);
+  phdr->p_paddr  = phdr->p_vaddr;
+  phdr->p_memsz  = phdr->p_filesz;
+  phdr->p_flags  = PF_X | PF_W | PF_R;
+  *offset       += ALIGN_UP(phdr->p_memsz, ELF_PAGESIZE);
+
+  elf_emit(cinfo, phdr, sizeof(*phdr));
+}
+
+/****************************************************************************
+ * Name: elf_emit_phdr
+ *
+ * Description:
+ *   Fill the program segment header
+ *
+ ****************************************************************************/
+
+static void elf_emit_phdr(FAR struct elf_dumpinfo_s *cinfo,
+                          int stksegs, int memsegs)
+{
+  off_t offset = cinfo->stream->nput +
+                 (stksegs + memsegs + 1 + 1) * sizeof(Elf_Phdr);
+  FAR struct tcb_s *tcb;
+  Elf_Phdr phdr;
+  int i;
+
+  memset(&phdr, 0, sizeof(Elf_Phdr));
+
+  phdr.p_type   = PT_NOTE;
+  phdr.p_offset = offset;
+  phdr.p_filesz = elf_get_note_size(stksegs);
+  offset       += phdr.p_filesz;
+
+  elf_emit(cinfo, &phdr, sizeof(phdr));
+
+  phdr.p_align  = ELF_PAGESIZE;
+  if (cinfo->pid == INVALID_PROCESS_ID)
+    {
+      for (i = 0; i < g_npidhash; i++)
+        {
+          tcb = nxsched_get_tcb(i);
+          if (tcb)
+            {
+              elf_emit_tcb_phdr(cinfo, tcb, &phdr, &offset);
+              nxsched_put_tcb(tcb);
+            }
+        }
+    }
+  else
+    {
+      tcb = nxsched_get_tcb(cinfo->pid);
+      if (tcb)
+        {
+          elf_emit_tcb_phdr(cinfo, tcb, &phdr, &offset);
+          nxsched_put_tcb(tcb);
+        }
+    }
+
+  /* Write program headers for segments dump */
+
+  for (i = 0; i < memsegs; i++)
+    {
+      phdr.p_type   = PT_LOAD;
+      phdr.p_offset = ALIGN_UP(offset, ELF_PAGESIZE);
+      phdr.p_vaddr  = cinfo->regions[i].start;
+      phdr.p_paddr  = phdr.p_vaddr;
+      phdr.p_filesz = cinfo->regions[i].end - cinfo->regions[i].start;
+      phdr.p_memsz  = phdr.p_filesz;
+      phdr.p_flags  = cinfo->regions[i].flags;
+      offset       += ALIGN_UP(phdr.p_memsz, ELF_PAGESIZE);
+      elf_emit(cinfo, &phdr, sizeof(phdr));
+    }
+
+  memset(&phdr, 0, sizeof(Elf_Phdr));
+  phdr.p_type   = PT_NOTE;
+  phdr.p_offset = ALIGN_UP(offset, ELF_PAGESIZE);
+  phdr.p_filesz = elf_get_info_note_size();
+  offset       += phdr.p_filesz;
+
+  elf_emit(cinfo, &phdr, sizeof(phdr));
+}
+
+/****************************************************************************
+ * Name: coredump_print_memory_regions
+ *
+ * Description:
+ *   Print out the memory range when coredump is generated.
+ *
+ ****************************************************************************/
+
+static void
+coredump_print_memory_regions(FAR const struct memory_region_s *regions)
+{
+  int i;
+
+  _alert("Memory regions will be printed:\n");
+  for (i = 0; regions[i].start < regions[i].end; i++)
+    {
+      _alert("Region[%d] start=0x%" PRIxPTR ", end=0x%" PRIxPTR,
+             i, regions[i].start, regions[i].end);
+      *(volatile int *)regions[i].start;
+      *(volatile int *)(regions[i].end - sizeof(int));
+    }
+}
+
+/****************************************************************************
+ * Name: coredump_dump_syslog
+ *
+ * Description:
+ *   Put coredump to block device.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_BOARD_COREDUMP_SYSLOG
+static void coredump_dump_syslog(pid_t pid)
+{
+  FAR void *stream;
+  FAR const char *streamname;
+  int logmask;
+
+  logmask = setlogmask(LOG_UPTO(LOG_ALERT));
+
+  _alert("Start coredump:\n");
+
+  /* Initialize hex output stream */
+
+  lib_syslogstream(&g_syslogstream, LOG_EMERG);
+  stream = &g_syslogstream;
+#ifdef CONFIG_BOARD_COREDUMP_BASE64STREAM
+  lib_base64outstream(&g_base64stream, stream);
+  stream = &g_base64stream;
+  streamname = "base64";
+#else
+  lib_hexdumpstream(&g_hexstream, stream);
+  stream = &g_hexstream;
+  streamname = "hex";
+#endif
+
+#  ifdef CONFIG_BOARD_COREDUMP_COMPRESSION
+
+  /* Initialize LZF compression stream */
+
+  lib_lzfoutstream(&g_lzfstream, stream);
+  stream = &g_lzfstream;
+#  endif
+
+  /* Do core dump */
+
+  coredump(g_regions, stream, pid);
+
+#  ifdef CONFIG_BOARD_COREDUMP_COMPRESSION
+  _alert("Finish coredump (Compression Enabled). %s formatted\n",
+         streamname);
+#  else
+  _alert("Finish coredump. %s formatted\n", streamname);
+#  endif
+
+  setlogmask(logmask);
+}
+#endif
+
+/****************************************************************************
+ * Name: coredump_dump_dev
+ *
+ * Description:
+ *   Save coredump to storage device.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_BOARD_COREDUMP_DEV
+static void coredump_dump_dev(pid_t pid)
+{
+  FAR void *stream = &g_devstream;
+  int ret;
+
+# if defined(CONFIG_BOARD_COREDUMP_BLKDEV) || defined(CONFIG_BOARD_COREDUMP_MTDDEV)
+  if (g_devstream.inode == NULL)
+    {
+      _alert("Coredump device not found\n");
+      return;
+    }
+# endif
+
+# if defined(CONFIG_BOARD_COREDUMP_MEMDEV) && \
+     !defined(CONFIG_BOARD_COREDUMP_OVERWRITE)
+  if (elf_exist_hdr((FAR struct lib_instream_s *)&g_devinstream))
+    {
+      _alert("Coredump memory device already exist:%s\n",
+             CONFIG_BOARD_COREDUMP_DEVPATH);
+      return;
+    }
+# endif
+
+# ifdef CONFIG_BOARD_COREDUMP_COMPRESSION
+  lib_lzfoutstream(&g_lzfstream, stream);
+  stream = &g_lzfstream;
+# endif
+
+  ret = coredump(g_regions, stream, pid);
+  if (ret < 0)
+    {
+      _alert("Coredump fail %d\n", ret);
+      return;
+    }
+
+  _alert("Finish coredump, write %"PRIuOFF" bytes to %s\n",
+         g_devstream.common.nput, CONFIG_BOARD_COREDUMP_DEVPATH);
+}
+#endif
+
+/****************************************************************************
+ * Name: coredump_initialize_memory_region
+ *
+ * Description:
+ *   initialize the memory region with board memory range specified in config
+ *
+ ****************************************************************************/
+
+static int coredump_initialize_memory_region(void)
+{
+#ifdef CONFIG_BOARD_MEMORY_RANGE
+  if (g_regions == NULL)
+    {
+      g_regions = g_memory_region;
+    }
+#endif
+
+  return OK;
+}
+
+/****************************************************************************
+ * Name: coredump_add_memory_region
+ *
+ * Description:
+ *   Use coredump to dump the memory of the specified area.
+ *
+ ****************************************************************************/
+
+int coredump_add_memory_region(FAR const void *ptr, size_t size,
+                               uint32_t flags)
+{
+  FAR struct memory_region_s *region;
+  size_t count = 1; /* 1 for end flag */
+  int ret;
+
+  ret = coredump_initialize_memory_region();
+  if (ret < 0)
+    {
+      return ret;
+    }
+
+  if (g_regions != NULL)
+    {
+      region = (FAR struct memory_region_s *)g_regions;
+
+      while (region->start < region->end)
+        {
+          if ((uintptr_t)ptr >= region->start &&
+              (uintptr_t)ptr + size < region->end)
+            {
+              /* Already watched */
+
+              return 0;
+            }
+          else if ((uintptr_t)ptr < region->start &&
+                   (uintptr_t)ptr + size >= region->end)
+            {
+              /* start out of region, end out of region */
+
+              region->start = (uintptr_t)ptr;
+              region->end = (uintptr_t)ptr + size;
+              return 0;
+            }
+          else if ((uintptr_t)ptr < region->start &&
+                   (uintptr_t)ptr + size >= region->start)
+            {
+              /* start out of region, end in region */
+
+              region->start = (uintptr_t)ptr;
+              return 0;
+            }
+          else if ((uintptr_t)ptr < region->end &&
+                   (uintptr_t)ptr + size >= region->end)
+            {
+              /* start in region, end out of region */
+
+              region->end = (uintptr_t)ptr + size;
+              return 0;
+            }
+
+          count++;
+          region++;
+        }
+
+      /* Need a new region */
+    }
+
+  region = lib_malloc(sizeof(struct memory_region_s) * (count + 1));
+  if (region == NULL)
+    {
+      return -ENOMEM;
+    }
+
+  if (g_regions != NULL)
+    {
+      memcpy(region, g_regions, sizeof(struct memory_region_s) * count);
+    }
+
+  if (g_regions != NULL
+#ifdef CONFIG_BOARD_MEMORY_RANGE
+    && g_regions != g_memory_region
+#endif
+    )
+    {
+      lib_free((FAR void *)g_regions);
+    }
+
+  region[count - 1].start = (uintptr_t)ptr;
+  region[count - 1].end = (uintptr_t)ptr + size;
+  region[count - 1].flags = flags;
+  region[count].start = 0;
+  region[count].end = 0;
+  region[count].flags = 0;
+
+  g_regions = region;
+  return 0;
+}
+
+/****************************************************************************
+ * Name: coredump_initialize
+ *
+ * Description:
+ *   Initialize the coredump facility.  Called once and only from
+ *   nx_start_application.
+ *
+ ****************************************************************************/
+
+int coredump_initialize(void)
+{
+  int ret = 0;
+
+  ret = coredump_initialize_memory_region();
+  if (ret < 0)
+    {
+      return ret;
+    }
+
+#ifdef CONFIG_BOARD_COREDUMP_BLKDEV
+  ret = lib_blkoutstream_open(&g_devstream,
+                              CONFIG_BOARD_COREDUMP_DEVPATH);
+#elif defined(CONFIG_BOARD_COREDUMP_MTDDEV)
+  ret = lib_mtdoutstream_open(&g_devstream,
+                              CONFIG_BOARD_COREDUMP_DEVPATH);
+#elif defined(CONFIG_BOARD_COREDUMP_MEMDEV)
+  ret = lib_filesistream_open(&g_devinstream,
+                              CONFIG_BOARD_COREDUMP_DEVPATH,
+                              O_RDONLY, 0666);
+  if (ret < 0)
+    {
+      _alert("%s Coredump instream could not be opened:%d\n",
+             CONFIG_BOARD_COREDUMP_DEVPATH, ret);
+      return ret;
+    }
+
+  ret = lib_fileoutstream_open(&g_devstream,
+                               CONFIG_BOARD_COREDUMP_DEVPATH,
+                               O_WRONLY, 0666);
+#endif
+
+#ifdef CONFIG_BOARD_COREDUMP_DEV
+  if (ret < 0)
+    {
+# ifdef CONFIG_BOARD_COREDUMP_MEMDEV
+      lib_filesistream_close(&g_devinstream);
+# endif
+      _alert("%s Coredump device init failed:%d\n",
+             CONFIG_BOARD_COREDUMP_DEVPATH, ret);
+    }
+
+#endif
+
+  g_stream_initialized = true;
+
+  return ret;
+}
+
+/****************************************************************************
+ * Name: coredump_dump
+ *
+ * Description:
+ *   Do coredump of the task specified by pid.
+ *
+ * Input Parameters:
+ *   pid - The task/thread ID of the thread to dump
+ *
+ ****************************************************************************/
+
+void coredump_dump(pid_t pid)
+{
+  if (!g_stream_initialized)
+    {
+      _alert("Coredump device is not initialized.\n");
+      return;
+    }
+
+  coredump_print_memory_regions(g_regions);
+#ifdef CONFIG_BOARD_COREDUMP_SYSLOG
+  coredump_dump_syslog(pid);
+#elif defined(CONFIG_BOARD_COREDUMP_DEV)
+  coredump_dump_dev(pid);
+#endif
+}
+
+/****************************************************************************
+ * Name: coredump
+ *
+ * Description:
+ *   This function for generating core dump stream.
+ *
+ ****************************************************************************/
+
+int coredump(FAR const struct memory_region_s *regions,
+             FAR struct lib_outstream_s *stream,
+             pid_t pid)
+{
+  struct elf_dumpinfo_s cinfo;
+  int memsegs = 0;
+  int stksegs;
+
+  cinfo.regions = regions;
+  cinfo.stream  = stream;
+  cinfo.pid     = pid;
+
+  if (cinfo.pid != INVALID_PROCESS_ID)
+    {
+      if (!nxsched_verify_pid(cinfo.pid))
+        {
+          return -EINVAL;
+        }
+
+      stksegs = 1;
+    }
+  else
+    {
+      stksegs = elf_get_ntcb();
+    }
+
+  /* Check the memory region */
+
+  if (cinfo.regions != NULL)
+    {
+      for (; cinfo.regions[memsegs].start <
+             cinfo.regions[memsegs].end; memsegs++);
+    }
+
+  /* Fill notes section, with additional one for program header,
+   * and one for the core file info defined by NuttX.
+   */
+
+  elf_emit_hdr(&cinfo, stksegs + memsegs + 1 + 1);
+
+  /* Fill all the program information about the process for the
+   * notes.  This also sets up the file header.
+   */
+
+  elf_emit_phdr(&cinfo, stksegs, memsegs);
+
+  /* Fill note information */
+
+  elf_emit_note(&cinfo);
+
+  /* Align to page */
+
+  elf_emit_align(&cinfo);
+
+  /* Dump stack */
+
+  elf_emit_stack(&cinfo);
+
+  /* Dump memory segments */
+
+  if (memsegs > 0)
+    {
+      elf_emit_memory(&cinfo, memsegs);
+    }
+
+  /* Emit core info note */
+
+  elf_emit_info_note(&cinfo);
+
+  /* Flush the dump */
+
+  elf_flush(&cinfo);
+
+  return OK;
+}

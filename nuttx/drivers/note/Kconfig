@@ -1,0 +1,313 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+menu "Note Driver Support"
+
+config DRIVERS_NOTE
+	bool
+	---help---
+		Note Driver Support, enable this option to enable note driver.
+
+config DRIVERS_NOTE_MAX
+	int "Maximum number of sched_note drivers"
+	default 1
+	---help---
+		sched_note supports the maximum number of drivers
+
+config DRIVERS_NOTE_CPUID
+	int "Note CPU ID"
+	depends on UP
+	default 0
+	---help---
+		The value used to mark CPU ID in the note data.
+		When SMP or BMP is disabled, CPU ID is always 0. In order to
+		distinguish between valid CPU ID and invalid CPU ID
+		in the note data, this option can be used to set a
+		specific value as the CPU ID.
+
+config DRIVERS_NOTE_TASKNAME_BUFSIZE
+	int "Note task name buffer size"
+	default 256 if TASK_NAME_SIZE > 0
+	default 0 if TASK_NAME_SIZE = 0
+	---help---
+		The size of the in-memory task name buffer (in bytes).
+		The buffer is used to hold the name of the task during instrumentation.
+		Trace dump can find and show a task name corresponding to given pid in
+		the instrumentation data by using this buffer.
+		If 0 is specified, this feature is disabled and trace dump shows only
+		the name of the newly created task.
+
+config DRIVERS_NOTE_CLOCKID
+	int "Select ClockId to display timestamp in notecomm"
+	default -1
+	---help---
+		If -1 means disable timestamp add note comm.
+		CLOCK_REALTIME, CLOCK_MONOTONIC etc. clockID
+
+config DRIVERS_NOTECTL
+	bool "Scheduler instrumentation filter control driver"
+	depends on SCHED_INSTRUMENTATION_FILTER
+	default SCHED_INSTRUMENTATION_FILTER
+	---help---
+		If this option is selected, the instrumentation filter control device
+		/dev/notectl is provided.
+
+config DRIVERS_NOTE_RATELIMIT_INTERVAL
+	int "NOTE rate limiting interval"
+	default 0
+	---help---
+		"The size of the time window. 0 means no rate limiting"
+
+config DRIVERS_NOTE_RATELIMIT_BURST
+	int "NOTE rate limiting burst"
+	default 0
+	---help---
+		"The burst traffic allowed within the window."
+
+config DRIVERS_NOTE_DEFAULT_LEVEL
+	int "NOTE driver default level"
+	range 0 7
+	default 7
+	depends on SCHED_INSTRUMENTATION_DUMP
+	---help---
+		The note driver default level for SCHED_INSTRUMENTATION_DUMP
+		Refer to syslog for level definition.
+		LOG_EMERG     0  /* System is unusable */
+		LOG_ALERT     1  /* Action must be taken immediately */
+		LOG_CRIT      2  /* Critical conditions */
+		LOG_ERR       3  /* Error conditions */
+		LOG_WARNING   4  /* Warning conditions */
+		LOG_NOTICE    5  /* Normal, but significant, condition */
+		LOG_INFO      6  /* Informational message */
+		LOG_DEBUG     7  /* Debug-level message */
+
+config DRIVERS_NOTERAM
+	bool "Note RAM driver"
+	select DRIVERS_NOTE
+	default SCHED_INSTRUMENTATION
+	---help---
+		If this option is selected, then in-memory buffering logic is
+		enabled to capture scheduler instrumentation data.  This has
+		the advantage that (1) the platform logic does not have to provide
+		the sched_note_* interfaces described for the previous settings.
+		Instead, the buffering logic catches all of these.  It encodes
+		timestamps the scheduler note and adds the note to an in-memory,
+		circular buffer.  And (2) buffering the scheduler instrumentation
+		data (versus performing some output operation) minimizes the impact
+		of the instrumentation on the behavior of the system. If the in-memory
+		buffer becomes full, then older notes are overwritten by newer notes.
+
+		A character driver is provided which can be used by an application
+		to read data from the in-memory, scheduler instrumentation "note"
+		buffer.
+
+		NOTE: This option is not available if critical sections are being
+		monitored (nor if spinlocks are being monitored in SMP configuration)
+		because there would be a logical error in the design in those cases.
+		That error is that these interfaces call enter_ and leave_critical_section
+		(which use spinlocks in SMP mode).  That means that each call to
+		sched_note_get() causes several additional entries to be added from
+		the note buffer in order to remove one entry.
+
+if DRIVERS_NOTERAM
+
+config DRIVERS_NOTERAM_BUFSIZE
+	int "Note RAM buffer size"
+	default 2048
+	---help---
+		The size of the in-memory, circular instrumentation buffer (in bytes).
+
+config DRIVERS_NOTERAM_SECTION
+	string "Note RAM section"
+	---help---
+		Enable section information.
+
+config DRIVERS_NOTERAM_DEFAULT_NOOVERWRITE
+	bool "Disable overwrite by default"
+	default n
+	---help---
+		Disables overwriting old notes in the circular buffer when the buffer
+		is full by default. This is useful to keep instrumentation data of the
+		beginning of a system boot.
+
+config DRIVERS_NOTERAM_CRASH_DUMP
+	bool "Dump noteram buffer on panic"
+	depends on SYSLOG
+	default n
+	---help---
+		If this option is enabled, dump all contents when a crash occurs.
+
+config DRIVERS_NOTERAM_POLLTIMEOUT_MS
+	int "The timeout ms if poll requested and no data avaliable"
+	default 0
+	---help---
+		Default 0 to disable this feature, positive value (ms) to make noteram trigger a
+		wdog to enable idle timeout notify poll waiter.
+
+endif # DRIVERS_NOTERAM
+
+config DRIVERS_NOTE_STRIP_FORMAT
+	bool "Strip sched_note_printf format string"
+	---help---
+		Strip sched_note_printf format string.
+
+config DRIVERS_NOTELOWEROUT
+	bool "Note lower output"
+	select DRIVERS_NOTE
+	default n
+	---help---
+		Note uses lower output.
+
+config DRIVERS_NOTELOWEROUT_FILTER_DEFAULT_MODE
+	hex "Note lower output filter mode"
+	depends on DRIVERS_NOTELOWEROUT && SCHED_INSTRUMENTATION_FILTER
+	default SCHED_INSTRUMENTATION_FILTER_DEFAULT_MODE
+	---help---
+		Filter mode for notelowerout
+
+config DRIVERS_NOTELOWEROUT_CPUSET
+	hex "Note lower output CPU set"
+	depends on DRIVERS_NOTELOWEROUT && SMP && SCHED_INSTRUMENTATION_FILTER
+	default SCHED_INSTRUMENTATION_CPUSET
+	---help---
+		CPU set for notelowerout
+
+config DRIVERS_NOTEFILE
+	bool "Note file driver"
+	select DRIVERS_NOTE
+	---help---
+		The Note driver output to file.
+
+config DRIVERS_NOTEFILE_FILTER_DEFAULT_MODE
+	hex "Note file driver filter mode"
+	depends on DRIVERS_NOTEFILE && SCHED_INSTRUMENTATION_FILTER
+	default SCHED_INSTRUMENTATION_FILTER_DEFAULT_MODE
+	---help---
+		Filter mode for notefile
+
+config DRIVERS_NOTEFILE_CPUSET
+	hex "Note file driver CPU set"
+	depends on DRIVERS_NOTEFILE && SMP && SCHED_INSTRUMENTATION_FILTER
+	default SCHED_INSTRUMENTATION_CPUSET
+	---help---
+		CPU set for notefile
+
+config DRIVERS_NOTEFILE_PATH
+	string "Note file path"
+	depends on DRIVERS_NOTEFILE
+	default "/dev/ttyS1"
+	---help---
+		The Note driver output to file path.
+
+config DRIVERS_NOTELOG
+	bool "Note syslog driver"
+	select DRIVERS_NOTE
+	---help---
+		The Note driver output to syslog.
+
+config DRIVERS_NOTELOG_FILTER_DEFAULT_MODE
+	hex "Note syslog driver filter mode"
+	depends on DRIVERS_NOTELOG && SCHED_INSTRUMENTATION_FILTER
+	default SCHED_INSTRUMENTATION_FILTER_DEFAULT_MODE
+	---help---
+		Filter mode for notelog
+
+config DRIVERS_NOTELOG_CPUSET
+	hex "Note syslog driver CPU set"
+	depends on DRIVERS_NOTELOG && SMP && SCHED_INSTRUMENTATION_FILTER
+	default SCHED_INSTRUMENTATION_CPUSET
+	---help---
+		CPU set for notelog
+
+config DRIVERS_NOTESNAP
+	bool "Last scheduling information"
+	select DRIVERS_NOTE
+	default n
+	---help---
+		Record the last scheduling information.
+
+if DRIVERS_NOTESNAP
+
+config DRIVERS_NOTESNAP_FILTER_DEFAULT_MODE
+	hex "Note snap driver filter mode"
+	depends on SCHED_INSTRUMENTATION_FILTER
+	default SCHED_INSTRUMENTATION_FILTER_DEFAULT_MODE
+	---help---
+		Filter mode for notesnap
+
+config DRIVERS_NOTESNAP_CPUSET
+	hex "Note snap driver CPU set"
+	depends on SMP && SCHED_INSTRUMENTATION_FILTER
+	default SCHED_INSTRUMENTATION_CPUSET
+	---help---
+		CPU set for notesnap
+
+config DRIVERS_NOTESNAP_NBUFFERS
+	int "Number of last scheduling information buffers"
+	default 128
+	---help---
+		Number of last scheduling information buffers.
+endif
+
+config DRIVERS_NOTEITM
+	bool "Note ITM driver"
+	depends on CORESIGHT_ITM
+	default n
+	---help---
+		The note driver output to ITM.
+
+config DRIVERS_NOTERPMSG_SERVER
+	bool "Enable RPMSG server for NOTE"
+	select DRIVERS_NOTE
+	default n
+	depends on RPMSG
+	---help---
+		Use rpmsg to receive message from remote proc.
+
+config DRIVERS_NOTERPMSG
+	bool "Note to RPMSG"
+	select DRIVERS_NOTE
+	depends on RPMSG
+	depends on SCHED_WORKQUEUE
+	default n
+	---help---
+		Use the rpmsg as a Note output device, send message to remote proc.
+
+if DRIVERS_NOTERPMSG
+
+config DRIVERS_NOTERPMSG_FILTER_DEFAULT_MODE
+	hex "Note RPMSG client filter mode"
+	depends on SCHED_INSTRUMENTATION_FILTER
+	default SCHED_INSTRUMENTATION_FILTER_DEFAULT_MODE
+	---help---
+		Filter mode for noterpmsg
+
+config DRIVERS_NOTERPMSG_CPUSET
+	hex "Note RPMSG client CPU set"
+	depends on SMP && SCHED_INSTRUMENTATION_FILTER
+	default SCHED_INSTRUMENTATION_CPUSET
+	---help---
+		CPU set for noterpmsg
+
+config DRIVERS_NOTERPMSG_BUFSIZE
+	int "Note RPMSG client buffer size"
+	default 1024
+	---help---
+		The size of the client buffer (in bytes)
+
+config DRIVERS_NOTERPMSG_SERVER_NAME
+	string "The name of Note Rpmsg Server"
+	default "ap"
+	---help---
+		The proc name of rpmsg server. Client sends message to
+		specified name of remote proc.
+
+config DRIVERS_NOTERPMSG_WORK_DELAY
+	int "NOTE RPMSG work delay(ms)"
+	default 100
+
+endif
+
+endmenu # Note Driver Support

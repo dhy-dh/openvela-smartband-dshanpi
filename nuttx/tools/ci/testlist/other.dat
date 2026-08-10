@@ -1,0 +1,57 @@
+# We do not have a toolchain for avr32 outside of Microchip login wall.
+# The work was never upstreamed to GCC.
+/avr
+
+# PINGUINOL toolchain doesn't provide macOS binaries
+# with the same name
+/mips,CONFIG_MIPS32_TOOLCHAIN_PINGUINOL
+
+/renesas/rx65n/rx65n-grrose
+/renesas/rx65n/rx65n-rsk2mb
+
+/x86
+
+# Sparc-gaisler-elf toolchain doesn't provide macOS binaries
+/sparc
+-xx3823:nsh
+
+# Temporarily closed, will reopen after resolving the compilation issue
+-chipkit-wifire:nsh
+-pic32mz-starterkit:nsh
+-flipnclick-pic32mz:nxlines
+-flipnclick-pic32mz:nsh
+-pic32mx-starterkit:nsh
+-pic32mx-starterkit:nsh2
+-ubw32:nsh
+-mirtoo:nxffs
+-mirtoo:nsh
+-pic32mx7mmb:nsh
+-sure-pic32mx:nsh
+-sure-pic32mx:usbnsh
+-rx65n-grrose:ipv6
+-rx65n-grrose:netnsh
+-rx65n-grrose:nsh
+-rx65n-rsk2mb:ipv6
+-rx65n-rsk2mb:netnsh
+-rx65n-rsk2mb:nsh
+
+# implicit declaration of function 'atomic_fetch'
+-teensy-2.0:usbmsc
+-teensy-2.0:hello
+-teensy-2.0:nsh
+-micropendous3:hello
+-moteino-mega:hello
+-moteino-mega:nsh
+-arduino-mega2560:hello
+-arduino-mega2560:nsh
+-amber:hello
+-mega1284p-xplained:hello
+-mega1284p-xplained:nsh
+-avr32dev1:ostest
+-avr32dev1:nsh
+-mizar32a:nsh
+-qemu-i486:ostest
+-qemu-i486:nsh
+-xx3803:nsh
+-s698pm-dkit:smp
+-s698pm-dkit:nsh

@@ -1,0 +1,10 @@
+/risc-v/e[t-z]*
+/risc-v/[f-p]*
+/risc-v/q[0-d]*
+-,arty_a7:.+
+-hpm6360evk:nsh
+-icicle:rpmsg-sbi
+-icicle:opensbi
+
+# error: missing argument to '-Wstack-usage='
+-hifive1-revb:nsh

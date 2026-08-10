@@ -1,0 +1,25 @@
+
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+menuconfig TRICOREHT
+	bool "Tricoreht Driver Support"
+	default n
+	---help---
+		Tricoreht drivers support.
+
+if TRICOREHT
+
+config TRICOREHT_NOTE_DTU
+	bool "Note tricoreht use dtu driver"
+	select HWTRACING_NOTE
+	default n
+
+config TRICOREHT_TRIGGER_SECTION
+	string "Ttricoreht trigger section"
+	default ""
+	---help---
+		The section in which to place the trigger buffer.
+
+endif # TRICOREHT

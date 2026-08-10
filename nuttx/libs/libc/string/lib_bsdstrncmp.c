@@ -1,0 +1,101 @@
+/****************************************************************************
+ * libs/libc/string/lib_bsdstrncmp.c
+ *
+ * Copyright (c) 1994-2009  Red Hat, Inc. All rights reserved.
+ *
+ * This copyrighted material is made available to anyone wishing to use,
+ * modify, copy, or redistribute it subject to the terms and conditions
+ * of the BSD License.   This program is distributed in the hope that
+ * it will be useful, but WITHOUT ANY WARRANTY expressed or implied,
+ * including the implied warranties of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE.  A copy of this license is available at
+ * http://www.opensource.org/licenses. Any Red Hat trademarks that are
+ * incorporated in the source code or documentation are not subject to
+ * the BSD License and may only be used or replicated with the express
+ * permission of Red Hat, Inc.
+ *
+ ****************************************************************************/
+
+/****************************************************************************
+ * Included Files
+ ****************************************************************************/
+
+#include <nuttx/config.h>
+#include <sys/types.h>
+#include <string.h>
+
+#include "libc.h"
+
+/****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+
+#if !defined(CONFIG_LIBC_ARCH_STRNCMP) && defined(LIBC_BUILD_STRNCMP)
+#undef strncmp /* See mm/README.txt */
+no_builtin("strncmp")
+nosanitize_address
+int strncmp(FAR const char *cs, FAR const char *ct, size_t nb)
+{
+  FAR libc_data_t *a1;
+  FAR libc_data_t *a2;
+
+  if (nb == 0)
+    {
+      return 0;
+    }
+
+  /* If cs or ct are unaligned, then compare bytes. */
+
+  if (!UNALIGNED(cs, ct))
+    {
+      /* If cs and ct are word-aligned, compare them a word at a time. */
+
+      a1 = (FAR libc_data_t *)cs;
+      a2 = (FAR libc_data_t *)ct;
+      while (nb >= LITTLEBLOCKSIZE && *a1 == *a2)
+        {
+          nb -= LITTLEBLOCKSIZE;
+
+          /* If we've run out of bytes or hit a null, return zero
+           * since we already know *a1 == *a2.
+           */
+
+          if (nb == 0 || DETECTNULL(*a1))
+            {
+              return 0;
+            }
+
+          a1++;
+          a2++;
+        }
+
+      /* A difference was detected in last few bytes of cs, so search
+       * bytewise.
+       */
+
+      cs = (FAR char *)a1;
+      ct = (FAR char *)a2;
+    }
+
+  while (nb-- > 0 && *cs == *ct)
+    {
+      /* If we've run out of bytes or hit a null, return zero
+       * since we already know *cs == *ct.
+       */
+
+      if (nb == 0 || *cs == '\0')
+        {
+          return 0;
+        }
+
+      cs++;
+      ct++;
+    }
+
+  return *cs - *ct;
+}
+#endif

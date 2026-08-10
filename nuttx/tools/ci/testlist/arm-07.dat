@@ -1,0 +1,42 @@
+/arm/s32k1xx,CONFIG_ARM_TOOLCHAIN_GNU_EABI
+
+/arm/sam34,CONFIG_ARM_TOOLCHAIN_GNU_EABI
+
+/arm/sama5,CONFIG_ARM_TOOLCHAIN_GNU_EABI
+
+/arm/samd2l2,CONFIG_ARM_TOOLCHAIN_CLANG
+
+/arm/samd5e5,CONFIG_ARM_TOOLCHAIN_CLANG
+
+/arm/samv7,CONFIG_ARM_TOOLCHAIN_GNU_EABI
+
+-sam3u-ek:knsh
+-same70-qmtech:mcuboot-loader
+-ucans32k146:se05x
+
+# undefined symbol: __atomic_load
+-samd21-xplained:nsh
+-arduino-m0:usbnsh
+-arduino-m0:nsh
+-xiao-seeeduino:nsh
+-samd20-xplained:nsh
+-circuit-express:usbnsh
+-circuit-express:nsh
+-saml21-xplained:nsh
+
+# SOF_TIMESTAMPING_SOFTWARE redefined
+-ucans32k146:can
+
+# 'struct winsize' declared inside parameter
+-sama5d3-xplained:ethernet-over-usb-2-high-speed
+-giant-board:sdmmc-net-nsh
+-giant-board:sdmmcnsh
+-sama5d2-xult:sdmmcnsh
+-jupiter-nano:sdmmc-nsh-net-resolvconf
+-jupiter-nano:sdmmcnsh
+
+# undefined reference to `up_addrenv_leave_kernel'
+-sama5d4-ek:elf
+
+# error: missing argument to '-Wstack-usage='
+-s32k146evb:nsh

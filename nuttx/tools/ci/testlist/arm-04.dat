@@ -1,0 +1,38 @@
+/arm/lc823450,CONFIG_ARM_TOOLCHAIN_GNU_EABI
+
+/arm/lpc214x,CONFIG_ARM_TOOLCHAIN_GNU_EABI
+
+/arm/lpc2378,CONFIG_ARM_TOOLCHAIN_GNU_EABI
+
+/arm/lpc31xx,CONFIG_ARM_TOOLCHAIN_GNU_EABI
+
+/arm/lpc43xx,CONFIG_ARM_TOOLCHAIN_GNU_EABI
+
+/arm/lpc54xx,CONFIG_ARM_TOOLCHAIN_CLANG
+
+-lc823450-xgevk:posix_spawn
+-ea3131:pgnsh
+
+# Temporarily closed, will reopen after resolving the compilation issue
+-lpcxpresso-lpc54628:pwfb
+-lpcxpresso-lpc54628:nxwm
+-lpcxpresso-lpc54628:pwlines
+-lpcxpresso-lpc54628:twm4nx1
+-lpcxpresso-lpc54628:fb
+-lpcxpresso-lpc54628:twm4nx2
+
+# arm_vectors.S
+-mcu123-lpc214x:usbserial
+-mcu123-lpc214x:nsh
+-mcu123-lpc214x:composite
+-mcu123-lpc214x:usbmsc
+-zp214xpa:nxlines
+-zp214xpa:nsh
+-olimex-lpc2378:nsh
+-ea3152:ostest
+-ea3131:usbserial
+-ea3131:nsh
+-olimex-lpc-h3131:nsh
+
+# error: missing argument to '-Wstack-usage='
+-lc823450-xgevk:elf

@@ -1,0 +1,11 @@
+/arm/r*,CONFIG_ARM_TOOLCHAIN_GNU_EABI
+
+# Boards build by CMake
+
+CMake,raspberrypi-pico:bmp280
+
+# PICO_SDK_PATH environment variable is not set
+-raspberrypi-pico:bmp280
+
+# error: missing argument to '-Wstack-usage='
+-waveshare-rp2040-lcd-1.28:spisd

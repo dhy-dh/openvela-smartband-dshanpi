@@ -1,0 +1,1762 @@
+/****************************************************************************
+ * drivers/note/noteram_driver.c
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ *
+ ****************************************************************************/
+
+/****************************************************************************
+ * Included Files
+ ****************************************************************************/
+
+#include <nuttx/config.h>
+
+#include <sys/types.h>
+#include <sched.h>
+#include <fcntl.h>
+#include <assert.h>
+#include <errno.h>
+#include <stdio.h>
+#include <string.h>
+#include <inttypes.h>
+#include <poll.h>
+
+#include <nuttx/spinlock.h>
+#include <nuttx/sched.h>
+#include <nuttx/sched_note.h>
+#include <nuttx/kmalloc.h>
+#include <nuttx/note/note_driver.h>
+#include <nuttx/note/noteram_driver.h>
+#include <nuttx/nuttx.h>
+#include <nuttx/panic_notifier.h>
+#include <nuttx/fs/fs.h>
+#include <nuttx/streams.h>
+
+#include "note_driver.h"
+
+#ifdef CONFIG_SCHED_INSTRUMENTATION_SYSCALL
+#  ifdef CONFIG_LIB_SYSCALL
+#    include <syscall.h>
+#  else
+#    define CONFIG_LIB_SYSCALL
+#    include <syscall.h>
+#    undef CONFIG_LIB_SYSCALL
+#  endif
+#endif
+
+/****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
+
+#define NCPUS CONFIG_SMP_NCPUS
+
+/* Renumber idle task PIDs
+ *  In NuttX, PID number less than NCPUS are idle tasks.
+ *  In Linux, there is only one idle task of PID 0.
+ */
+
+#define get_pid(pid) ((pid) < NCPUS ? 0 : (pid))
+
+#define get_task_state(s)                                                    \
+  ((s) == 0 ? 'X' : ((s) <= LAST_READY_TO_RUN_STATE ? 'R' : 'S'))
+
+#if CONFIG_TASK_NAME_SIZE > 0
+#  define TASK_NAME_SIZE (CONFIG_TASK_NAME_SIZE + 1)
+#else
+#  define TASK_NAME_SIZE 16
+#endif
+
+#define NOTERAM_MAGIC_INIT  0x6e6f7466
+#define NOTERAM_MAGIC_READY 0x6e6f7467
+
+#define NOTERAM_BUFSIZE (CONFIG_DRIVERS_NOTERAM_BUFSIZE -                    \
+                         sizeof(struct noteram_header_s))
+
+/****************************************************************************
+ * Private Types
+ ****************************************************************************/
+
+struct noteram_ratelimit_s
+{
+  unsigned int interval; /* The interval in seconds */
+  unsigned int burst;    /* The max allowed note number during interval */
+  unsigned int printed;  /* The number of printed note during interval */
+  unsigned long begin;   /* The timestamp in seconds */
+};
+
+struct noteram_header_s
+{
+  volatile unsigned int head;
+  volatile unsigned int tail;
+  volatile unsigned int read;
+  spinlock_t lock;
+  atomic_t magic;
+};
+
+struct noteram_driver_s
+{
+  struct note_driver_s driver;
+  FAR struct noteram_header_s *header;
+  FAR uint8_t *buffer;
+  size_t bufsize;
+  unsigned int overwrite;
+  unsigned int threshold;
+  FAR struct pollfd *pfd;
+  struct notifier_block nb;
+  struct noteram_ratelimit_s ratelimit;
+#if CONFIG_DRIVERS_NOTERAM_POLLTIMEOUT_MS > 0
+  struct wdog_s wdog;
+#endif
+};
+
+/* The structure to hold the context data of trace dump */
+
+struct noteram_dump_cpu_context_s
+{
+  int intr_nest;            /* Interrupt nest level */
+  bool pendingswitch;       /* sched_switch pending flag */
+  int current_state;        /* Task state of the current line */
+  pid_t current_pid;        /* Task PID of the current line */
+  pid_t next_pid;           /* Task PID of the next line */
+  uint8_t current_priority; /* Task Priority of the current line */
+  uint8_t next_priority;    /* Task Priority of the next line */
+};
+
+struct noteram_dump_context_s
+{
+  struct noteram_dump_cpu_context_s cpu[NCPUS];
+  unsigned int mode;
+};
+
+/****************************************************************************
+ * Private Function Prototypes
+ ****************************************************************************/
+
+static int noteram_open(FAR struct file *filep);
+static int noteram_close(FAR struct file *filep);
+static ssize_t noteram_read(FAR struct file *filep,
+                            FAR char *buffer, size_t buflen);
+static int noteram_ioctl(FAR struct file *filep, int cmd, unsigned long arg);
+static int noteram_poll(FAR struct file *filep, FAR struct pollfd *fds,
+                        bool setup);
+static void noteram_add(FAR struct note_driver_s *drv,
+                        FAR const void *note, size_t len,
+                        bool noswitches);
+static void
+noteram_dump_init_context(FAR struct noteram_dump_context_s *ctx);
+static int noteram_dump_one(FAR uint8_t *p, FAR struct lib_outstream_s *s,
+                            FAR struct noteram_dump_context_s *ctx);
+static unsigned int noteram_unread_length(FAR struct noteram_driver_s *drv);
+
+#if CONFIG_DRIVERS_NOTERAM_POLLTIMEOUT_MS > 0
+static void noteram_timeout_handler(wdparm_t arg);
+#endif
+
+/****************************************************************************
+ * Private Data
+ ****************************************************************************/
+
+static const struct file_operations g_noteram_fops =
+{
+  noteram_open,  /* open */
+  noteram_close, /* close */
+  noteram_read,  /* read */
+  NULL,          /* write */
+  NULL,          /* seek */
+  noteram_ioctl, /* ioctl */
+  NULL,          /* mmap */
+  NULL,          /* truncate */
+  noteram_poll,  /* poll */
+};
+
+static
+#ifdef DRIVERS_NOTERAM_SECTION
+locate_data(CONFIG_DRIVERS_NOTERAM_SECTION)
+#endif
+struct noteram_buffer_s
+{
+  struct noteram_header_s header;
+  uint8_t buffer[NOTERAM_BUFSIZE];
+} g_ramnote_buffer;
+
+static const struct note_driver_ops_s g_noteram_ops =
+{
+  noteram_add
+};
+
+/****************************************************************************
+ * Public Data
+ ****************************************************************************/
+
+DEFINE_PER_CPU_BMP(struct noteram_driver_s, g_noteram_driver) =
+{
+  {
+#ifdef CONFIG_SCHED_INSTRUMENTATION_FILTER
+    "ram",
+    {
+      {
+        CONFIG_SCHED_INSTRUMENTATION_FILTER_DEFAULT_MODE,
+#  ifdef CONFIG_SMP
+        CONFIG_SCHED_INSTRUMENTATION_CPUSET
+#  endif
+      },
+
+#  ifdef CONFIG_SCHED_INSTRUMENTATION_DUMP
+      {
+        CONFIG_DRIVERS_NOTE_DEFAULT_LEVEL,
+      },
+#  endif
+    },
+#endif
+    &g_noteram_ops
+  },
+  &g_ramnote_buffer.header,
+  g_ramnote_buffer.buffer,
+  NOTERAM_BUFSIZE,
+#ifdef CONFIG_DRIVERS_NOTERAM_DEFAULT_NOOVERWRITE
+  NOTE_MODE_OVERWRITE_DISABLE
+#else
+  NOTE_MODE_OVERWRITE_ENABLE
+#endif
+};
+#define g_noteram_driver this_cpu_var_bmp(g_noteram_driver)
+
+/****************************************************************************
+ * Private Functions
+ ****************************************************************************/
+
+#if CONFIG_DRIVERS_NOTERAM_POLLTIMEOUT_MS > 0
+static inline_function
+void noteram_timeout_reset(FAR struct noteram_driver_s *drv)
+{
+  /* We need locked to ensure the wdog status and dq status aligned. */
+
+  irqstate_t flags = spin_lock_irqsave(&drv->header->lock);
+  if (!drv->pfd)
+    {
+      wd_cancel(&drv->wdog);
+    }
+  else
+    {
+      wd_start(&drv->wdog, MSEC2TICK(CONFIG_DRIVERS_NOTERAM_POLLTIMEOUT_MS),
+               noteram_timeout_handler, (wdparm_t)drv);
+    }
+
+  spin_unlock_irqrestore(&drv->header->lock, flags);
+}
+
+static void noteram_timeout_handler(wdparm_t arg)
+{
+  FAR struct noteram_driver_s *drv = (FAR struct noteram_driver_s *)arg;
+
+  if (drv->pfd && (noteram_unread_length(drv) >= drv->threshold))
+    {
+      poll_notify(&drv->pfd, 1, POLLIN);
+    }
+
+  noteram_timeout_reset(drv);
+}
+#else
+#  define noteram_timeout_reset(drv)
+#endif /* CONFIG_RAMLOG_POLLTIMEOUT_MS > 0 */
+
+/****************************************************************************
+ * Name: noteram_header_init
+ *
+ * Description:
+ *   Initialize the header of circular buffer.
+ *
+ * Input Parameters:
+ *   driver - The channel of note driver
+ *
+ * Returned Value:
+ *   None.
+ *
+ ****************************************************************************/
+
+static inline void noteram_header_init(FAR struct noteram_driver_s *drv)
+{
+  uint32_t magic;
+  irqstate_t flags;
+
+  while ((magic = atomic_read_acquire(&drv->header->magic)) !=
+         NOTERAM_MAGIC_READY)
+    {
+      flags = up_irq_save();
+      while (magic != NOTERAM_MAGIC_INIT &&
+             atomic_cmpxchg_relaxed(&drv->header->magic, &magic,
+                                    NOTERAM_MAGIC_INIT))
+        {
+          drv->header->head = 0;
+          drv->header->tail = 0;
+          drv->header->read = 0;
+          spin_lock_init(&drv->header->lock);
+          atomic_set_release(&drv->header->magic, NOTERAM_MAGIC_READY);
+        }
+
+      up_irq_restore(flags);
+    }
+}
+
+/****************************************************************************
+ * Name: noteram_ratelimit
+ *
+ * Description:
+ *   Check whether the instrumentation is limited.
+ *
+ * Input Parameters:
+ *   driver - The channel of note driver
+ *
+ * Returned Value:
+ *   True is returned if the instrumentation is limited.
+ *
+ ****************************************************************************/
+
+static bool noteram_ratelimit(FAR struct noteram_driver_s *drv)
+{
+  bool ret;
+  clock_t ticks;
+  uint32_t seconds;
+  FAR struct noteram_ratelimit_s *limit;
+
+  limit = &drv->ratelimit;
+
+  if (limit->interval == 0)
+    {
+      return false;
+    }
+
+  ticks = clock_systime_ticks();
+  seconds = ticks * CONFIG_USEC_PER_TICK / 1000000;
+
+  if (limit->begin == 0)
+    {
+      limit->begin = seconds;
+    }
+
+  /* Reset statistical information */
+
+  if ((seconds - limit->begin) >= limit->interval)
+    {
+      limit->begin = seconds;
+      limit->printed = 0;
+    }
+
+  /* Check if the note is limited */
+
+  if (limit->burst && limit->burst > limit->printed)
+    {
+      limit->printed++;
+      ret = false;
+    }
+  else
+    {
+      ret = true;
+    }
+
+  return ret;
+}
+
+/****************************************************************************
+ * Name: noteram_buffer_clear
+ *
+ * Description:
+ *   Clear all contents of the circular buffer.
+ *
+ * Input Parameters:
+ *   None.
+ *
+ * Returned Value:
+ *   None.
+ *
+ ****************************************************************************/
+
+static void noteram_buffer_clear(FAR struct noteram_driver_s *drv)
+{
+  drv->header->tail = drv->header->head;
+  drv->header->read = drv->header->head;
+
+  if (drv->overwrite == NOTE_MODE_OVERWRITE_OVERFLOW)
+    {
+      drv->overwrite = NOTE_MODE_OVERWRITE_DISABLE;
+    }
+}
+
+/****************************************************************************
+ * Name: noteram_next
+ *
+ * Description:
+ *   Return the circular buffer index at offset from the specified index
+ *   value, handling wraparound
+ *
+ * Input Parameters:
+ *   ndx - Old circular buffer index
+ *
+ * Returned Value:
+ *   New circular buffer index
+ *
+ ****************************************************************************/
+
+static inline unsigned int noteram_next(FAR struct noteram_driver_s *drv,
+                                        unsigned int ndx,
+                                        unsigned int offset)
+{
+  ndx += offset;
+  if (ndx >= drv->bufsize)
+    {
+      ndx -= drv->bufsize;
+    }
+
+  return ndx;
+}
+
+/****************************************************************************
+ * Name: noteram_length
+ *
+ * Description:
+ *   Length of data currently in circular buffer.
+ *
+ * Input Parameters:
+ *   None
+ *
+ * Returned Value:
+ *   Length of data currently in circular buffer.
+ *
+ ****************************************************************************/
+
+static unsigned int noteram_length(FAR struct noteram_driver_s *drv)
+{
+  unsigned int head = drv->header->head;
+  unsigned int tail = drv->header->tail;
+
+  if (tail > head)
+    {
+      head += drv->bufsize;
+    }
+
+  return head - tail;
+}
+
+/****************************************************************************
+ * Name: noteram_unread_length
+ *
+ * Description:
+ *   Length of unread data currently in circular buffer.
+ *
+ * Input Parameters:
+ *   None
+ *
+ * Returned Value:
+ *   Length of unread data currently in circular buffer.
+ *
+ ****************************************************************************/
+
+static unsigned int noteram_unread_length(FAR struct noteram_driver_s *drv)
+{
+  unsigned int head = drv->header->head;
+  unsigned int read = drv->header->read;
+
+  if (read > head)
+    {
+      head += drv->bufsize;
+    }
+
+  return head - read;
+}
+
+/****************************************************************************
+ * Name: noteram_remove
+ *
+ * Description:
+ *   Remove the variable length note from the tail of the circular buffer
+ *
+ * Input Parameters:
+ *   None
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions:
+ *   We are within a critical section.
+ *
+ ****************************************************************************/
+
+static void noteram_remove(FAR struct noteram_driver_s *drv)
+{
+  unsigned int tail;
+  unsigned int length;
+
+  /* Get the tail index of the circular buffer */
+
+  tail = drv->header->tail;
+  DEBUGASSERT(tail < drv->bufsize);
+
+  /* Get the length of the note at the tail index */
+
+  length = NOTE_ALIGN(drv->buffer[tail]);
+  DEBUGASSERT(length <= noteram_length(drv));
+
+  /* Increment the tail index to remove the entire note from the circular
+   * buffer.
+   */
+
+  if (drv->header->read == drv->header->tail)
+    {
+      /* The read index also needs increment. */
+
+      drv->header->read = noteram_next(drv, tail, length);
+    }
+
+  drv->header->tail = noteram_next(drv, tail, length);
+}
+
+/****************************************************************************
+ * Name: noteram_get
+ *
+ * Description:
+ *   Get the next note from the read index of the circular buffer.
+ *
+ * Input Parameters:
+ *   buffer - Location to return the next note
+ *   buflen - The length of the user provided buffer.
+ *
+ * Returned Value:
+ *   On success, the positive, non-zero length of the return note is
+ *   provided.  Zero is returned only if the circular buffer is empty.  A
+ *   negated errno value is returned in the event of any failure.
+ *
+ ****************************************************************************/
+
+static ssize_t noteram_get(FAR struct noteram_driver_s *drv,
+                           FAR uint8_t *buffer, size_t buflen)
+{
+  FAR struct note_common_s *note;
+  unsigned int remaining;
+  unsigned int read;
+  ssize_t notelen;
+  size_t circlen;
+
+  DEBUGASSERT(buffer != NULL);
+
+  /* Verify that the circular buffer is not empty */
+
+  circlen = noteram_unread_length(drv);
+  if (circlen <= 0)
+    {
+      return 0;
+    }
+
+  /* Get the read index of the circular buffer */
+
+  read = drv->header->read;
+  DEBUGASSERT(read < drv->bufsize);
+
+  /* Get the length of the note at the read index */
+
+  note = (FAR struct note_common_s *)&drv->buffer[read];
+  notelen = note->nc_length;
+  DEBUGASSERT(notelen <= circlen);
+
+  /* Is the user buffer large enough to hold the note? */
+
+  if (buflen < notelen)
+    {
+      /* and return an error */
+
+      return -EFBIG;
+    }
+
+  /* Loop until the note has been transferred to the user buffer */
+
+  remaining = (unsigned int)notelen;
+  while (remaining > 0)
+    {
+      /* Copy the next byte at the read index */
+
+      *buffer++ = drv->buffer[read];
+
+      /* Adjust indices and counts */
+
+      read = noteram_next(drv, read, 1);
+      remaining--;
+    }
+
+  drv->header->read = noteram_next(drv, drv->header->read,
+                                   NOTE_ALIGN(notelen));
+
+  return NOTE_ALIGN(notelen);
+}
+
+/****************************************************************************
+ * Name: noteram_open
+ ****************************************************************************/
+
+static int noteram_open(FAR struct file *filep)
+{
+  FAR struct noteram_dump_context_s *ctx;
+  FAR struct noteram_driver_s *drv = (FAR struct noteram_driver_s *)
+                                     filep->f_inode->i_private;
+
+  /* Reset the read index of the circular buffer */
+
+  drv->header->read = drv->header->tail;
+  ctx = kmm_zalloc(sizeof(*ctx));
+  if (ctx == NULL)
+    {
+      return -ENOMEM;
+    }
+
+  drv->threshold = sizeof(struct note_common_s);
+
+  filep->f_priv = ctx;
+  noteram_dump_init_context(ctx);
+  return OK;
+}
+
+int noteram_close(FAR struct file *filep)
+{
+  FAR struct noteram_dump_context_s *ctx = filep->f_priv;
+
+  filep->f_priv = NULL;
+  kmm_free(ctx);
+  return OK;
+}
+
+/****************************************************************************
+ * Name: noteram_read
+ ****************************************************************************/
+
+static ssize_t noteram_read(FAR struct file *filep, FAR char *buffer,
+                            size_t buflen)
+{
+  FAR struct noteram_dump_context_s *ctx = filep->f_priv;
+  FAR struct noteram_driver_s *drv = filep->f_inode->i_private;
+  FAR struct lib_memoutstream_s stream;
+  ssize_t ret;
+  irqstate_t flags;
+
+  if (ctx->mode == NOTE_MODE_READ_BINARY)
+    {
+      size_t nread = 0;
+      flags = spin_lock_irqsave_notrace(&drv->header->lock);
+      while (nread < buflen)
+        {
+          ret = noteram_get(drv, (FAR uint8_t *)buffer + nread,
+                            buflen - nread);
+          if (ret <= 0)
+            {
+              break;
+            }
+
+          nread += ret;
+        }
+
+      spin_unlock_irqrestore_notrace(&drv->header->lock, flags);
+      return nread;
+    }
+  else
+    {
+      lib_memoutstream(&stream, buffer, buflen);
+
+      do
+        {
+          aligned_data(sizeof(uintptr_t)) uint8_t note[256];
+
+          /* Get the next note (removing it from the buffer) */
+
+          flags = spin_lock_irqsave_notrace(&drv->header->lock);
+          ret = noteram_get(drv, note, sizeof(note));
+          spin_unlock_irqrestore_notrace(&drv->header->lock, flags);
+          if (ret <= 0)
+            {
+              return ret;
+            }
+
+          /* Parse notes into text format */
+
+          ret = noteram_dump_one(note, (FAR struct lib_outstream_s *)&stream,
+                                 ctx);
+        }
+      while (ret == 0);
+
+      return stream.common.nput;
+    }
+}
+
+/****************************************************************************
+ * Name: noteram_ioctl
+ ****************************************************************************/
+
+static int noteram_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
+{
+  int ret = -ENOTTY;
+  FAR struct noteram_driver_s *drv = filep->f_inode->i_private;
+  irqstate_t flags = spin_lock_irqsave_notrace(&drv->header->lock);
+
+  /* Handle the ioctl commands */
+
+  switch (cmd)
+    {
+      /* NOTE_CLEAR
+       *      - Clear all contents of the circular buffer
+       *        Argument: Ignored
+       */
+
+      case NOTE_CLEAR:
+        noteram_buffer_clear(drv);
+        ret = OK;
+        break;
+
+      /* NOTE_GETMODE
+       *      - Get overwrite mode
+       *        Argument: A writable pointer to unsigned int
+       */
+
+      case NOTE_GETMODE:
+        if (arg == 0)
+          {
+            ret = -EINVAL;
+          }
+        else
+          {
+            *(FAR unsigned int *)arg = drv->overwrite;
+            ret = OK;
+          }
+        break;
+
+      /* NOTE_SETMODE
+       *      - Set overwrite mode
+       *        Argument: A read-only pointer to unsigned int
+       */
+
+      case NOTE_SETMODE:
+        if (arg == 0)
+          {
+            ret = -EINVAL;
+          }
+        else
+          {
+            drv->overwrite = *(FAR unsigned int *)arg;
+            ret = OK;
+          }
+        break;
+
+      /* NOTE_GETREADMODE
+       *      - Get read mode
+       *        Argument: A writable pointer to unsigned int
+       */
+
+      case NOTE_GETREADMODE:
+        if (arg == 0)
+          {
+            ret = -EINVAL;
+          }
+        else
+          {
+            FAR struct noteram_dump_context_s *ctx = filep->f_priv;
+
+            *(FAR unsigned int *)arg = ctx->mode;
+            ret = OK;
+          }
+        break;
+
+      /* NOTE_SETREADMODE
+       *      - Set read mode
+       *        Argument: A read-only pointer to unsigned int
+       */
+
+      case NOTE_SETREADMODE:
+        if (arg == 0)
+          {
+            ret = -EINVAL;
+          }
+        else
+          {
+            FAR struct noteram_dump_context_s *ctx = filep->f_priv;
+
+            ctx->mode = *(FAR unsigned int *)arg;
+            ret = OK;
+          }
+        break;
+
+      case NOTE_GETRATELIMIT:
+        if (arg == 0)
+          {
+            ret = -EINVAL;
+          }
+        else
+          {
+            FAR struct note_ratelimit_s *limit =
+              (FAR struct note_ratelimit_s *)arg;
+
+            limit->interval = drv->ratelimit.interval;
+            limit->burst = drv->ratelimit.burst;
+            ret = OK;
+          }
+        break;
+
+      case NOTE_SETRATELIMIT:
+        if (arg == 0)
+          {
+            ret = -EINVAL;
+          }
+        else
+          {
+            FAR struct note_ratelimit_s *limit =
+              (FAR struct note_ratelimit_s *)arg;
+
+            drv->ratelimit.interval = limit->interval;
+            drv->ratelimit.burst = limit->burst;
+            ret = OK;
+          }
+        break;
+
+      case NOTE_GETFREQ:
+        *(FAR unsigned long *)arg = perf_getfreq();
+        ret = OK;
+        break;
+
+      case FIONREAD:
+        if (arg == 0)
+          {
+            ret = -EINVAL;
+          }
+        else
+          {
+            *(FAR unsigned int *)arg = noteram_unread_length(drv);
+            ret = OK;
+          }
+        break;
+
+      case PIPEIOC_POLLINTHRD:
+        drv->threshold = (uint32_t)arg;
+        ret = OK;
+        break;
+
+      default:
+        break;
+    }
+
+  spin_unlock_irqrestore_notrace(&drv->header->lock, flags);
+  return ret;
+}
+
+/****************************************************************************
+ * Name: noteram_poll
+ ****************************************************************************/
+
+static int noteram_poll(FAR struct file *filep, FAR struct pollfd *fds,
+                        bool setup)
+{
+  int ret = 0;
+  FAR struct inode *inode;
+  FAR struct noteram_driver_s *drv;
+  irqstate_t flags;
+
+  DEBUGASSERT(filep != NULL && fds != NULL);
+  inode = filep->f_inode;
+
+  DEBUGASSERT(inode != NULL && inode->i_private != NULL);
+  drv = inode->i_private;
+
+  flags = spin_lock_irqsave_notrace(&drv->header->lock);
+
+  /* Ignore waits that do not include POLLIN */
+
+  if ((fds->events & POLLIN) == 0)
+    {
+      ret = -EDEADLK;
+      goto errout;
+    }
+
+  /* Are we setting up the poll?  Or tearing it down? */
+
+  if (setup)
+    {
+      /* Check if we can accept this poll.
+       * For now, only one thread can poll the device at any time
+       * (shorter / simpler code)
+       */
+
+      if (drv->pfd)
+        {
+          ret = -EBUSY;
+          goto errout;
+        }
+
+      drv->pfd = fds;
+
+      /* Is there unread data in noteram? then trigger POLLIN now -
+       * don't wait for RX.
+       */
+
+      if (noteram_unread_length(drv) >= drv->threshold)
+        {
+          spin_unlock_irqrestore_notrace(&drv->header->lock, flags);
+          poll_notify(&drv->pfd, 1, POLLIN);
+          return ret;
+        }
+    }
+  else /* Tear it down */
+    {
+      drv->pfd = NULL;
+    }
+
+errout:
+  spin_unlock_irqrestore_notrace(&drv->header->lock, flags);
+  noteram_timeout_reset(drv);
+  return ret;
+}
+
+/****************************************************************************
+ * Name: noteram_add
+ *
+ * Description:
+ *   Add the variable length note to the transport layer
+ *
+ * Input Parameters:
+ *   note    - The note buffer
+ *   notelen - The buffer length
+ *   noswitches - True: Can't do context switches now.
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions:
+ *   We are within a critical section.
+ *
+ ****************************************************************************/
+
+static void noteram_add(FAR struct note_driver_s *driver,
+                        FAR const void *note, size_t notelen,
+                        bool noswitches)
+{
+  FAR const char *buf = note;
+  FAR struct noteram_driver_s *drv = (FAR struct noteram_driver_s *)driver;
+  unsigned int head;
+  unsigned int remain;
+  unsigned int space;
+  irqstate_t flags;
+
+  /* Initialize the noteram header if it has not been initialized yet. */
+
+  noteram_header_init(drv);
+
+  flags = spin_lock_irqsave_notrace(&drv->header->lock);
+
+  if (noteram_ratelimit(drv))
+    {
+      spin_unlock_irqrestore_notrace(&drv->header->lock, flags);
+      return;
+    }
+
+  if (drv->overwrite == NOTE_MODE_OVERWRITE_OVERFLOW)
+    {
+      spin_unlock_irqrestore_notrace(&drv->header->lock, flags);
+      return;
+    }
+
+  DEBUGASSERT(note != NULL && notelen < drv->bufsize);
+  remain = drv->bufsize - noteram_length(drv);
+
+  if (remain <= NOTE_ALIGN(notelen))
+    {
+      if (drv->overwrite == NOTE_MODE_OVERWRITE_DISABLE)
+        {
+          /* Stop recording if not in overwrite mode */
+
+          drv->overwrite = NOTE_MODE_OVERWRITE_OVERFLOW;
+          spin_unlock_irqrestore_notrace(&drv->header->lock, flags);
+          return;
+        }
+
+      /* Remove the note at the tail index , make sure there is enough space
+       */
+
+      do
+        {
+          noteram_remove(drv);
+          remain = drv->bufsize - noteram_length(drv);
+        }
+      while (remain <= NOTE_ALIGN(notelen));
+    }
+
+  head = drv->header->head;
+  space = drv->bufsize - head;
+  space = space < notelen ? space : notelen;
+  memcpy(drv->buffer + head, note, space);
+  memcpy(drv->buffer, buf + space, notelen - space);
+  drv->header->head = noteram_next(drv, head, NOTE_ALIGN(notelen));
+  spin_unlock_irqrestore_notrace(&drv->header->lock, flags);
+
+  if (!noswitches && drv->pfd &&
+      (noteram_unread_length(drv) >= drv->threshold))
+    {
+      poll_notify(&drv->pfd, 1, POLLIN);
+    }
+
+  noteram_timeout_reset(drv);
+}
+
+/****************************************************************************
+ * Name: noteram_dump_init_context
+ ****************************************************************************/
+
+static void noteram_dump_init_context(FAR struct noteram_dump_context_s *ctx)
+{
+  int cpu;
+
+  /* Initialize the trace dump context */
+
+  for (cpu = 0; cpu < NCPUS; cpu++)
+    {
+      ctx->cpu[cpu].intr_nest = 0;
+      ctx->cpu[cpu].pendingswitch = false;
+      ctx->cpu[cpu].current_state = TSTATE_TASK_RUNNING;
+      ctx->cpu[cpu].current_pid = -1;
+      ctx->cpu[cpu].next_pid = -1;
+      ctx->cpu[cpu].current_priority = -1;
+      ctx->cpu[cpu].next_priority = -1;
+    }
+}
+
+/****************************************************************************
+ * Name: noteram_dump_header
+ ****************************************************************************/
+
+static int noteram_dump_header(FAR struct lib_outstream_s *s,
+                               FAR struct note_common_s *note,
+                               FAR struct noteram_dump_context_s *ctx)
+{
+  struct timespec ts;
+  char buf[TASK_NAME_SIZE];
+  pid_t pid;
+  int ret;
+
+  UP_REALSYM(perf_convert)(note->nc_systime, &ts);
+  pid = note->nc_pid;
+#ifdef CONFIG_SMP
+  int cpu = note->nc_cpu;
+#else
+  int cpu = 0;
+#endif
+
+  note_get_taskname(pid, buf, TASK_NAME_SIZE);
+
+  ret = lib_sprintf(s, "%8s-%-3u [%d] %3" PRIuTM ".%09lu: ",
+                    buf, get_pid(pid), cpu,
+                    ts.tv_sec, ts.tv_nsec);
+
+  return ret;
+}
+
+#if (defined CONFIG_SCHED_INSTRUMENTATION_SWITCH)                            \
+    || (defined CONFIG_SCHED_INSTRUMENTATION_IRQHANDLER)
+/****************************************************************************
+ * Name: noteram_dump_sched_switch
+ ****************************************************************************/
+
+static int noteram_dump_sched_switch(FAR struct lib_outstream_s *s,
+                                     FAR struct note_common_s *note,
+                                     FAR struct noteram_dump_context_s *ctx)
+{
+  FAR struct noteram_dump_cpu_context_s *cctx;
+  char current_buf[TASK_NAME_SIZE];
+  char next_buf[TASK_NAME_SIZE];
+  uint8_t current_priority;
+  uint8_t next_priority;
+  pid_t current_pid;
+  pid_t next_pid;
+  int ret;
+#ifdef CONFIG_SMP
+  int cpu = note->nc_cpu;
+#else
+  int cpu = 0;
+#endif
+
+  cctx = &ctx->cpu[cpu];
+  current_pid = cctx->current_pid;
+  next_pid = cctx->next_pid;
+
+  current_priority = cctx->current_priority;
+  next_priority = cctx->next_priority;
+
+  note_get_taskname(current_pid, current_buf, TASK_NAME_SIZE);
+  note_get_taskname(next_pid, next_buf, TASK_NAME_SIZE);
+
+  ret = lib_sprintf(s, "sched_switch: prev_comm=%s prev_pid=%u "
+                    "prev_prio=%u prev_state=%c ==> "
+                    "next_comm=%s next_pid=%u next_prio=%u\n",
+                    current_buf, get_pid(current_pid),
+                    current_priority, get_task_state(cctx->current_state),
+                    next_buf, get_pid(next_pid),
+                    next_priority);
+
+  cctx->current_pid = cctx->next_pid;
+  cctx->current_priority = cctx->next_priority;
+  cctx->pendingswitch = false;
+  return ret;
+}
+#endif
+
+/****************************************************************************
+ * Name: noteram_dump_printf
+ ****************************************************************************/
+
+#ifdef CONFIG_SCHED_INSTRUMENTATION_DUMP
+static int noteram_dump_printf(FAR struct lib_outstream_s *s,
+                               FAR struct note_printf_s *note)
+{
+  size_t ret = 0;
+
+  if (note->npt_type == 0)
+    {
+      ret = lib_osprintf(s, note->npt_fmt, note->npt_data);
+    }
+  else
+    {
+      size_t count = NOTE_PRINTF_GET_COUNT(note->npt_type);
+      char fmt[128];
+      size_t i;
+
+      fmt[0] = '\0';
+      ret += lib_sprintf(s, "%p", note->npt_fmt);
+      for (i = 0; i < count; i++)
+        {
+          int type = NOTE_PRINTF_GET_TYPE(note->npt_type, i);
+
+          switch (type)
+            {
+              case NOTE_PRINTF_UINT32:
+                {
+                  strcat(fmt, " %u");
+                }
+                break;
+              case NOTE_PRINTF_UINT64:
+                {
+                  strcat(fmt, " %llu");
+                }
+                break;
+              case NOTE_PRINTF_STRING:
+                {
+                  strcat(fmt, " %s");
+                }
+                break;
+              case NOTE_PRINTF_DOUBLE:
+                {
+                  strcat(fmt, " %f");
+                }
+            }
+        }
+
+        ret += lib_osprintf(s, fmt, note->npt_data);
+    }
+
+  return ret;
+}
+#endif
+
+/****************************************************************************
+ * Name: noteram_dump_one
+ ****************************************************************************/
+
+static int noteram_dump_one(FAR uint8_t *p, FAR struct lib_outstream_s *s,
+                            FAR struct noteram_dump_context_s *ctx)
+{
+  FAR struct note_common_s *note = (FAR struct note_common_s *)p;
+  FAR struct noteram_dump_cpu_context_s *cctx;
+#ifdef CONFIG_SCHED_INSTRUMENTATION_SWITCH
+  char buf[TASK_NAME_SIZE];
+#endif
+#ifdef CONFIG_SMP
+  int cpu = note->nc_cpu;
+#else
+  int cpu = 0;
+#endif
+  int ret = 0;
+  pid_t pid;
+
+  cctx = &ctx->cpu[cpu];
+  pid = note->nc_pid;
+
+  if (cctx->current_pid < 0)
+    {
+      cctx->current_pid = pid;
+    }
+
+  /* Output one note */
+
+  switch (note->nc_type)
+    {
+#ifdef CONFIG_SCHED_INSTRUMENTATION_SWITCH
+    case NOTE_START:
+      {
+        note_get_taskname(pid, buf, TASK_NAME_SIZE);
+        ret += noteram_dump_header(s, note, ctx);
+        ret += lib_sprintf(s, "sched_wakeup_new: comm=%s pid=%d "
+                           "target_cpu=%d\n",
+                           buf, get_pid(pid), cpu);
+      }
+      break;
+
+    case NOTE_STOP:
+      {
+        /* This note informs the task to be stopped.
+         * Change current task state for the succeeding NOTE_RESUME.
+         */
+
+        cctx->current_state = 0;
+      }
+      break;
+
+    case NOTE_SUSPEND:
+      {
+        FAR struct note_suspend_s *nsu = (FAR struct note_suspend_s *)p;
+
+        /* This note informs the task to be suspended.
+         * Preserve the information for the succeeding NOTE_RESUME.
+         */
+
+        cctx->current_state = nsu->nsu_state;
+      }
+      break;
+
+    case NOTE_RESUME:
+      {
+        /* This note informs the task to be resumed.
+         * The task switch timing depends on the running context.
+         */
+
+        cctx->next_pid = pid;
+        cctx->next_priority = note->nc_priority;
+
+        if (cctx->intr_nest == 0)
+          {
+            /* If not in the interrupt context, the task switch is
+             * executed immediately.
+             */
+
+            ret += noteram_dump_header(s, note, ctx);
+            ret += noteram_dump_sched_switch(s, note, ctx);
+          }
+        else
+          {
+            /* If in the interrupt context, the task switch is postponed
+             * until leaving the interrupt handler.
+             */
+
+            note_get_taskname(cctx->next_pid, buf, TASK_NAME_SIZE);
+            ret += noteram_dump_header(s, note, ctx);
+            ret += lib_sprintf(s, "sched_waking: comm=%s "
+                               "pid=%d target_cpu=%d\n",
+                               buf, get_pid(cctx->next_pid), cpu);
+            cctx->pendingswitch = true;
+          }
+      }
+      break;
+#endif
+
+#ifdef CONFIG_SCHED_INSTRUMENTATION_SYSCALL
+    case NOTE_SYSCALL_ENTER:
+      {
+        FAR struct note_syscall_enter_s *nsc;
+        int i;
+
+        UNUSED(i);
+        nsc = (FAR struct note_syscall_enter_s *)p;
+        if (nsc->nsc_nr < CONFIG_SYS_RESERVED ||
+            nsc->nsc_nr >= SYS_maxsyscall)
+          {
+            break;
+          }
+
+        ret += noteram_dump_header(s, note, ctx);
+        ret += lib_sprintf(s, "sys_%s(",
+                           g_funcnames[nsc->nsc_nr - CONFIG_SYS_RESERVED]);
+
+#ifdef CONFIG_SCHED_INSTRUMENTATION_FILTER_SYSCALL_ARGS
+        for (i = 0; i < nsc->nsc_argc; i++)
+          {
+            uintptr_t arg;
+            arg = nsc->nsc_args[i];
+            if (i == 0)
+              {
+                ret += lib_sprintf(s, "arg%d: 0x%" PRIxPTR, i, arg);
+              }
+            else
+              {
+                ret += lib_sprintf(s, ", arg%d: 0x%" PRIxPTR, i, arg);
+              }
+          }
+#endif
+
+        ret += lib_sprintf(s, ")\n");
+      }
+      break;
+
+    case NOTE_SYSCALL_LEAVE:
+      {
+        FAR struct note_syscall_leave_s *nsc;
+        uintptr_t result;
+
+        nsc = (FAR struct note_syscall_leave_s *)p;
+        if (nsc->nsc_nr < CONFIG_SYS_RESERVED ||
+            nsc->nsc_nr >= SYS_maxsyscall)
+          {
+            break;
+          }
+
+        ret += noteram_dump_header(s, note, ctx);
+        result = nsc->nsc_result;
+        ret += lib_sprintf(s, "sys_%s -> 0x%" PRIxPTR "\n",
+                          g_funcnames[nsc->nsc_nr - CONFIG_SYS_RESERVED],
+                          result);
+      }
+      break;
+#endif
+
+#ifdef CONFIG_SCHED_INSTRUMENTATION_IRQHANDLER
+    case NOTE_IRQ_ENTER:
+      {
+        FAR struct note_irqhandler_s *nih;
+
+        nih = (FAR struct note_irqhandler_s *)p;
+        ret += noteram_dump_header(s, note, ctx);
+        ret += lib_sprintf(s, "irq_handler_entry: irq=%u name=%pS\n",
+                           nih->nih_irq, (FAR void *)nih->nih_handler);
+        cctx->intr_nest++;
+      }
+      break;
+
+    case NOTE_IRQ_LEAVE:
+      {
+        FAR struct note_irqhandler_s *nih;
+
+        nih = (FAR struct note_irqhandler_s *)p;
+        ret += noteram_dump_header(s, note, ctx);
+        ret += lib_sprintf(s, "irq_handler_exit: irq=%u ret=handled\n",
+                           nih->nih_irq);
+        cctx->intr_nest--;
+
+        if (cctx->intr_nest <= 0)
+          {
+            cctx->intr_nest = 0;
+            if (cctx->pendingswitch)
+              {
+                /* If the pending task switch exists, it is executed here */
+
+                ret += noteram_dump_header(s, note, ctx);
+                ret += noteram_dump_sched_switch(s, note, ctx);
+              }
+          }
+      }
+      break;
+#endif
+
+#ifdef CONFIG_SCHED_INSTRUMENTATION_WDOG
+    case NOTE_WDOG_START:
+    case NOTE_WDOG_CANCEL:
+    case NOTE_WDOG_ENTER:
+    case NOTE_WDOG_LEAVE:
+      {
+        FAR struct note_wdog_s *nw;
+        FAR const char *name[] =
+          {
+            "start", "cancel", "enter", "leave",
+          };
+
+        nw = (FAR struct note_wdog_s *)p;
+        ret += noteram_dump_header(s, note, ctx);
+        ret += lib_sprintf(s, "tracing_mark_write: I|%d|wdog: %s-%pS %p\n",
+                           pid, name[note->nc_type - NOTE_WDOG_START],
+                           (FAR void *)nw->handler, (FAR void *)nw->arg);
+      }
+      break;
+#endif
+
+#ifdef CONFIG_SCHED_INSTRUMENTATION_CSECTION
+    case NOTE_CSECTION_ENTER:
+    case NOTE_CSECTION_LEAVE:
+      {
+        struct note_csection_s *ncs;
+        ncs = (FAR struct note_csection_s *)p;
+        ret += noteram_dump_header(s, &ncs->ncs_cmn, ctx);
+        ret += lib_sprintf(s, "tracing_mark_write: %c|%d|critical_section\n",
+                           note->nc_type == NOTE_CSECTION_ENTER ?
+                           'B' : 'E', pid);
+      }
+      break;
+#endif
+
+#ifdef CONFIG_SCHED_INSTRUMENTATION_PREEMPTION
+    case NOTE_PREEMPT_LOCK:
+    case NOTE_PREEMPT_UNLOCK:
+      {
+        struct note_preempt_s *npr;
+        int16_t count;
+        npr = (FAR struct note_preempt_s *)p;
+        count = npr->npr_count;
+        ret += noteram_dump_header(s, &npr->npr_cmn, ctx);
+        ret += lib_sprintf(s,  "tracing_mark_write: "
+                          "%c|%d|sched_lock:%d\n",
+                          note->nc_type == NOTE_PREEMPT_LOCK ?
+                          'B' : 'E', pid, count);
+      }
+      break;
+#endif
+
+#ifdef CONFIG_SCHED_INSTRUMENTATION_DUMP
+    case NOTE_DUMP_PRINTF:
+      {
+        FAR struct note_printf_s *npt;
+
+        npt = (FAR struct note_printf_s *)p;
+        ret += noteram_dump_header(s, &npt->npt_cmn, ctx);
+        ret += lib_sprintf(s, "tracing_mark_write: I|%d|", pid);
+        ret += noteram_dump_printf(s, npt);
+        lib_stream_putc(s, '\n');
+        ret++;
+      }
+      break;
+    case NOTE_DUMP_BEGIN:
+    case NOTE_DUMP_END:
+      {
+        FAR struct note_event_s *nbi = (FAR struct note_event_s *)p;
+        char c = note->nc_type == NOTE_DUMP_BEGIN ? 'B' : 'E';
+        int len = note->nc_length - SIZEOF_NOTE_EVENT(0);
+        uintptr_t ip;
+
+        ip = nbi->nev_ip;
+        ret += noteram_dump_header(s, &nbi->nev_cmn, ctx);
+        if (len > 0)
+          {
+            ret += lib_sprintf(s, "tracing_mark_write: %c|%d|%.*s\n",
+                               c, pid, len, (FAR const char *)nbi->nev_data);
+          }
+        else
+          {
+            ret += lib_sprintf(s, "tracing_mark_write: %c|%d|%pS\n",
+                               c, pid, (FAR void *)ip);
+          }
+      }
+      break;
+    case NOTE_DUMP_MARK:
+      {
+        FAR struct note_event_s *nbi = (FAR struct note_event_s *)p;
+        int len = note->nc_length - SIZEOF_NOTE_EVENT(0);
+
+        ret += noteram_dump_header(s, &nbi->nev_cmn, ctx);
+        ret += lib_sprintf(s, "tracing_mark_write: I|%d|%.*s\n",
+                           pid, len, (FAR const char *)nbi->nev_data);
+      }
+      break;
+      case NOTE_DUMP_BINARY:
+      {
+        FAR struct note_event_s *nbi = (FAR struct note_event_s *)p;
+        int len = note->nc_length - SIZEOF_NOTE_EVENT(0);
+        int i;
+
+        ret += noteram_dump_header(s, &nbi->nev_cmn, ctx);
+        ret += lib_sprintf(s, "tracing_mark_write: I|%d|", pid);
+
+        for (i = 0; i < len; i++)
+          {
+            ret += lib_sprintf(s, "%02x ", nbi->nev_data[i]);
+          }
+
+        lib_stream_putc(s, '\n');
+        ret++;
+      }
+      break;
+    case NOTE_DUMP_COUNTER:
+      {
+        FAR struct note_event_s *nbi = (FAR struct note_event_s *)p;
+        FAR struct note_counter_s *counter;
+        counter = (FAR struct note_counter_s *)nbi->nev_data;
+        ret += noteram_dump_header(s, &nbi->nev_cmn, ctx);
+        ret += lib_sprintf(s, "tracing_mark_write: C|%d|%s|%ld\n",
+                           pid, counter->name, counter->value);
+      }
+      break;
+    case NOTE_DUMP_THREADTIME:
+      {
+        FAR struct note_event_s *nev = (FAR struct note_event_s *)p;
+        FAR struct note_threadtime_s *nts = (FAR struct note_threadtime_s *)
+                                            nev->nev_data;
+        ret += noteram_dump_header(s, &nev->nev_cmn, ctx);
+        ret += lib_sprintf(s, "tracing_mark_write: I|%d|elapsed:%llu\n",
+                          pid, (unsigned long long)nts->elapsed);
+      }
+      break;
+#endif
+#ifdef CONFIG_SCHED_INSTRUMENTATION_HEAP
+    case NOTE_HEAP_ADD:
+    case NOTE_HEAP_REMOVE:
+    case NOTE_HEAP_ALLOC:
+    case NOTE_HEAP_FREE:
+      {
+        FAR struct note_heap_s *nmm = (FAR struct note_heap_s *)p;
+        FAR const char *name[] =
+          {
+            "add", "remove", "malloc", "free"
+          };
+
+        ret += noteram_dump_header(s, &nmm->nhp_cmn, ctx);
+        ret += lib_sprintf(s, "tracing_mark_write: C|%d|Heap Usage|%zu|%s"
+                           ": heap: 0x%" PRIxPTR
+                           " size: %zu, address: 0x%" PRIxPTR "\n",
+                           pid, nmm->used,
+                           name[note->nc_type - NOTE_HEAP_ADD],
+                           nmm->heap, nmm->size, nmm->mem);
+      }
+      break;
+#endif
+    default:
+      break;
+    }
+
+  /* Return the length of the processed note */
+
+  return ret;
+}
+
+#ifdef CONFIG_DRIVERS_NOTERAM_CRASH_DUMP
+
+/****************************************************************************
+ * Name: noteram_dump
+ ****************************************************************************/
+
+static void noteram_dump(FAR struct noteram_driver_s *drv)
+{
+  struct noteram_dump_context_s ctx;
+  struct lib_syslograwstream_s stream;
+  uint8_t note[256];
+
+  memset(&ctx, 0, sizeof(ctx));
+  lib_syslograwstream_open(&stream);
+  lib_sprintf(&stream.common, "# tracer:nop\n#\n");
+
+  while (1)
+    {
+      ssize_t ret;
+
+      ret = noteram_get(drv, note, sizeof(note));
+      if (ret <= 0)
+        {
+          break;
+        }
+
+      noteram_dump_one(note, &stream.common, &ctx);
+    }
+
+  lib_syslograwstream_close(&stream);
+}
+
+/****************************************************************************
+ * Name: noteram_crash_dump
+ ****************************************************************************/
+
+static int noteram_crash_dump(FAR struct notifier_block *nb,
+                              unsigned long action, FAR void *data)
+{
+  FAR struct noteram_driver_s *drv =
+      container_of(nb, struct noteram_driver_s, nb);
+  if (action == PANIC_KERNEL)
+    {
+      noteram_dump(drv);
+    }
+
+  return 0;
+}
+
+static void noteram_crash_dump_register(FAR struct noteram_driver_s *drv)
+{
+  drv->nb.notifier_call = noteram_crash_dump;
+  panic_notifier_chain_register(&drv->nb);
+}
+#endif
+
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Name: noteram_register
+ *
+ * Description:
+ *   Register a serial driver at /dev/note/ram that can be used by an
+ *   application to read data from the circular note buffer.
+ *
+ * Input Parameters:
+ *   None.
+ *
+ * Returned Value:
+ *   Zero on succress. A negated errno value is returned on a failure.
+ *
+ ****************************************************************************/
+
+int noteram_register(void)
+{
+#ifdef CONFIG_DRIVERS_NOTERAM_CRASH_DUMP
+  noteram_crash_dump_register(&g_noteram_driver);
+#endif
+  return register_driver("/dev/note/ram", &g_noteram_fops, 0666,
+                         &g_noteram_driver);
+}
+
+/****************************************************************************
+ * Name: noteram_initialize
+ *
+ * Description:
+ *   Register a serial driver at /dev/note/ram that can be used by an
+ *   application to read data from the circular note buffer.
+ *
+ * Input Parameters:
+ *  devpath: The path of the Noteram device
+ *  bufsize: The size of the circular buffer
+ *  overwrite: The overwrite mode
+ *  crashdump: If used by the crash dump
+ *  regnote: If register the note driver
+ *
+ * Returned Value:
+ *   Zero on succress. A negated errno value is returned on a failure.
+ *
+ ****************************************************************************/
+
+FAR struct note_driver_s *
+noteram_initialize(FAR const char *devpath, size_t bufsize,
+                   bool overwrite, bool crashdump, bool regnote)
+{
+  FAR void *buffer;
+
+  bufsize += sizeof(struct noteram_header_s);
+  buffer = kmm_zalloc(bufsize);
+  if (buffer == NULL)
+    {
+      return NULL;
+    }
+
+  return noteram_initialize_with_buffer(devpath, buffer, bufsize,
+                                        overwrite, crashdump, regnote);
+}
+
+/****************************************************************************
+ * Name: noteram_initialize_with_buffer
+ *
+ * Description:
+ *   Register a serial driver at /dev/note/ram that can be used by an
+ *   application to read data from the circular note buffer.
+ *
+ * Input Parameters:
+ *  devpath: The path of the Noteram device
+ *  buffer: The buffer to use by the noteram driver
+ *  bufsize: The size of the circular buffer
+ *  overwrite: The overwrite mode
+ *  crashdump: If used by the crash dump
+ *  regnote: If register the note driver
+ *
+ * Returned Value:
+ *   Zero on succress. A negated errno value is returned on a failure.
+ *
+ ****************************************************************************/
+
+FAR struct note_driver_s *
+noteram_initialize_with_buffer(FAR const char *devpath,
+                               FAR void *buffer, size_t bufsize,
+                               bool overwrite, bool crashdump, bool regnote)
+{
+  FAR struct noteram_driver_s *drv;
+  size_t len = 0;
+  int ret;
+
+  if (!buffer || bufsize <= sizeof(struct noteram_header_s))
+    {
+      return NULL;
+    }
+
+  if (devpath)
+    {
+      len = strlen(devpath) + 1;
+    }
+
+  drv = kmm_zalloc(sizeof(*drv) + len);
+  if (drv == NULL)
+    {
+      return NULL;
+    }
+
+  if (devpath)
+    {
+      memcpy(drv + 1, devpath, len);
+    }
+
+#ifdef CONFIG_SCHED_INSTRUMENTATION_FILTER
+  memcpy(drv + 1, devpath, len);
+  drv->driver.name = (FAR const char *)(drv + 1);
+  drv->driver.filter.mode.type_mask =
+    CONFIG_SCHED_INSTRUMENTATION_FILTER_DEFAULT_MODE;
+
+#  ifdef CONFIG_SMP
+  drv->driver.filter.mode.cpuset =
+    CONFIG_SCHED_INSTRUMENTATION_CPUSET;
+#  endif
+#endif
+
+#ifdef CONFIG_DRIVERS_NOTERAM_CRASH_DUMP
+  if (crashdump)
+    {
+      noteram_crash_dump_register(drv);
+    }
+#endif
+
+  drv->driver.ops = &g_noteram_ops;
+  drv->header = (FAR struct noteram_header_s *)buffer;
+  bufsize -= sizeof(struct noteram_header_s);
+
+  /* Initialize the noteram header if it has not been initialized yet. */
+
+  noteram_header_init(drv);
+
+  drv->buffer = (FAR uint8_t *)(drv->header + 1);
+  drv->bufsize = bufsize;
+  drv->overwrite = overwrite;
+
+  if (regnote)
+    {
+      ret = note_driver_register(&drv->driver);
+      if (ret < 0)
+        {
+          kmm_free(drv);
+          return NULL;
+        }
+    }
+
+  if (devpath == NULL)
+    {
+      return &drv->driver;
+    }
+
+  ret = register_driver(devpath, &g_noteram_fops, 0666, drv);
+  if (ret < 0)
+    {
+      kmm_free(drv);
+      return NULL;
+    }
+
+  return &drv->driver;
+}
