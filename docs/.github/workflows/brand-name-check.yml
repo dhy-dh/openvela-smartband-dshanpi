@@ -1,0 +1,46 @@
+name: brand-name-check
+
+# Fails the PR when the CamelCase brand form 'VelaClaw' appears in Markdown.
+# Please use 'openvelaClaw' (lowercase 'openvela' prefix, capital 'C') in prose.
+#
+# Intentionally NOT flagged:
+#   - lowercase code identifiers: 'velaclaw', '@system.velaclaw',
+#     'velaclaw_client_open', 'velaclaw_ask' (real framework APIs)
+#   - uppercase macro:            'VELACLAW_DAEMON' (real Kconfig / macro name)
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+jobs:
+  brand-name-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Scan Markdown for disallowed 'VelaClaw' brand form
+        run: |
+          set -u
+          echo "Scanning Markdown files for CamelCase brand form 'VelaClaw'..."
+          # grep is case-sensitive by default; 'VelaClaw' will NOT match
+          # 'openvelaClaw' (lowercase v) or 'VELACLAW_DAEMON' (all caps).
+          if matches=$(grep -rn --include='*.md' 'VelaClaw' .); then
+            echo ""
+            echo "::error::Disallowed brand form 'VelaClaw' found in Markdown."
+            echo "$matches" | while IFS= read -r line; do
+              file="${line%%:*}"
+              rest="${line#*:}"
+              lineno="${rest%%:*}"
+              echo "::error file=${file},line=${lineno}::Use 'openvelaClaw' instead of 'VelaClaw' in prose."
+            done
+            echo ""
+            echo "Per the openvela naming convention, please use 'openvelaClaw'"
+            echo "(lowercase 'openvela' prefix, capital 'C') as the brand name in prose."
+            echo ""
+            echo "The following identifiers are code / API names and must remain unchanged:"
+            echo "  - lowercase: 'velaclaw', '@system.velaclaw', 'velaclaw_client_open', 'velaclaw_ask'"
+            echo "  - uppercase: 'VELACLAW_DAEMON'"
+            exit 1
+          fi
+          echo "OK: no 'VelaClaw' brand form found."

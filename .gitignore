@@ -1,0 +1,30 @@
+# Public source snapshot: host-local metadata and downloaded toolchains
+/.agents/
+/.cargo/
+/.claude/
+/.codex/
+/.vscode/
+/prebuilts/
+/emulator.sh
+
+# Generated build outputs
+cmake_out/
+vendor/allwinnertech/lichee/out/
+vendor/allwinnertech/lichee/board/r528s3/*/configs/nsh.fex
+
+# Large prebuilt artifacts for unrelated boards. They are not used by the
+# R528 DshanPi/Gemini build and exceed GitHub's normal file-size limits.
+vendor/openvela/boards/vela/libs/
+vendor/openvela/boards/sil/tools/flash.img
+vendor/sifli/boards/sf32lb52/libs/
+vendor/infineon/chips/aurix/illd/tc4x/Libraries/doc/*.chm
+vendor/allwinnertech/lichee/brandy-2.0/u-boot-2018/tools/toolchain/*.tar.xz
+vendor/allwinnertech/lichee/brandy-2.0/tools/toolchain/*.tar.xz
+
+# Local proxy credentials, logs, and received records
+tools/weather_proxy/.env
+tools/weather_proxy/*.key
+tools/weather_proxy/*.pem
+tools/weather_proxy/*.log
+tmp/*.log
+tmp/daily-sync-receiver/

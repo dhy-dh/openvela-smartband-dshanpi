@@ -1,0 +1,16 @@
+{
+  "name": "openvela-weather-proxy",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Node.js 12 compatible QWeather proxy for the openvela UI",
+  "engines": {
+    "node": ">=12"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "start:sync": "node sync-receiver.js",
+    "check": "node --check server.js && node --check sync-receiver.js && node --check sync-receiver-test.js && node --check smoke-test.js",
+    "test:sync": "node sync-receiver-test.js",
+    "smoke": "node smoke-test.js"
+  }
+}
